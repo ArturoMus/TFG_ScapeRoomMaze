@@ -1,16 +1,29 @@
 // Componente base para objetos interactuables
 AFRAME.registerComponent('interactable', {
     init: function () {
+
         this.el.addEventListener('click', () => {
-            this.interact();
+            console.log("CLICK detectado en:", this.el);
+            let currentEl = this.el;
+            while (currentEl) {
+                console.log("Revisando:", currentEl);
+                for (let compName in currentEl.components) {
+                    let comp = currentEl.components[compName];
+                    if (typeof comp.interact === 'function') {
+                        comp.interact();
+                        return;
+                    }
+                }
+                currentEl = currentEl.parentEl;
+            }
+            // fallback
+            this.defaultInteract();
         });
     },
 
-    interact: function () {
-        // Aquí defines lo que pasa al interactuar
-        // Por ejemplo, cambiar color
+    defaultInteract: function () {
         this.el.setAttribute('color', '#'+Math.floor(Math.random()*16777215).toString(16));
-        console.log("Interacción ejecutada en:", this.el);
+        console.log("Interacción por defecto");
     }
 });
 
