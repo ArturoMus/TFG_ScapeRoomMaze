@@ -1,11 +1,46 @@
 
-function createBasicRoom(id, position, puzzleType = null) {
+function createBasicRoom(roomSize, id, position, puzzleType = null, neighbors = null) {
     const room = document.createElement('a-entity');
     room.setAttribute('id', id);
     room.setAttribute('position', position);
     room.setAttribute('class', 'room');
 
-    createRoomStructure(room);
+    createRoomStructure(room, roomSize, neighbors);
+
+    const roomBox1 = document.createElement('a-box'); //delante, norte
+    roomBox1.setAttribute('position', '0 1 -3');
+    roomBox1.setAttribute('color', 'red');
+    roomBox1.setAttribute('depth', '0.2');
+    roomBox1.setAttribute('height', '0.2');
+    roomBox1.setAttribute('width', '0.2');
+    room.appendChild(roomBox1);
+    const roomBox2 = document.createElement('a-box'); //detrás, sur
+    roomBox2.setAttribute('position', '0 1 3');
+    roomBox2.setAttribute('color', 'blue');
+    roomBox2.setAttribute('depth', '0.2');
+    roomBox2.setAttribute('height', '0.2');
+    roomBox2.setAttribute('width', '0.2');
+    room.appendChild(roomBox2);
+    const roomBox3 = document.createElement('a-box'); //derecha, este
+    roomBox3.setAttribute('position', '3 1 0');
+    roomBox3.setAttribute('color', 'green');
+    roomBox3.setAttribute('depth', '0.2');
+    roomBox3.setAttribute('height', '0.2');
+    roomBox3.setAttribute('width', '0.2');
+    room.appendChild(roomBox3);
+    const roomBox4 = document.createElement('a-box'); //izquierda, oeste
+    roomBox4.setAttribute('position', '-3 1 0');
+    roomBox4.setAttribute('color', 'yellow');
+    roomBox4.setAttribute('depth', '0.2');
+    roomBox4.setAttribute('height', '0.2');
+    roomBox4.setAttribute('width', '0.2');
+    room.appendChild(roomBox4);
+
+    // Crear puertas según los vecinos
+    // if (neighbors.north) createDoor(room, 'north', roomSize);
+    // if (neighbors.south) createDoor(room, 'south', roomSize);
+    // if (neighbors.east)  createDoor(room, 'east', roomSize);
+    // if (neighbors.west)  createDoor(room, 'west', roomSize);
 
     // Creamos puzzle si lo hay
     if (puzzleType) {
@@ -15,55 +50,215 @@ function createBasicRoom(id, position, puzzleType = null) {
     return room;
 }
 
-function createRoomStructure(room) {
+function createRoomStructure(room, roomSize, neighbors) {
+
     // suelo
     const floor = document.createElement('a-plane');
     floor.setAttribute('rotation', '-90 0 0');
-    floor.setAttribute('width', '10');
-    floor.setAttribute('height', '10');
+    floor.setAttribute('width', roomSize);
+    floor.setAttribute('height', roomSize);
     floor.setAttribute('color', '#999');
     room.appendChild(floor);
-
-    // Paredes
-    const wallNorth = document.createElement('a-box');
-    wallNorth.setAttribute('position', '0 2 5');
-    wallNorth.setAttribute('width', 10);
-    wallNorth.setAttribute('height', 4);
-    wallNorth.setAttribute('depth', 0.2);
-    wallNorth.setAttribute('color', '#666');
-
-    const wallSouth = document.createElement('a-box');
-    wallSouth.setAttribute('position', '0 2 -5');
-    wallSouth.setAttribute('width', 10);
-    wallSouth.setAttribute('height', 4);
-    wallSouth.setAttribute('depth', 0.2);
-    wallSouth.setAttribute('color', '#666');
-
-    const wallEast = document.createElement('a-box');
-    wallEast.setAttribute('position', '5 2 0');
-    wallEast.setAttribute('width', 0.2);
-    wallEast.setAttribute('height', 4);
-    wallEast.setAttribute('depth', 10);
-    wallEast.setAttribute('color', '#555');
-
-    const wallWest = document.createElement('a-box');
-    wallWest.setAttribute('position', '-5 2 0');
-    wallWest.setAttribute('width', 0.2);
-    wallWest.setAttribute('height', 4);
-    wallWest.setAttribute('depth', 10);
-    wallWest.setAttribute('color', '#555');
-
-    room.appendChild(wallNorth);
-    room.appendChild(wallSouth);
-    room.appendChild(wallEast);
-    room.appendChild(wallWest);
 
     // Techo
     const ceiling = document.createElement('a-plane');
     ceiling.setAttribute('rotation', '90 0 0');
     ceiling.setAttribute('position', '0 4 0');
-    ceiling.setAttribute('width', 10);
-    ceiling.setAttribute('height', 10);
+    ceiling.setAttribute('width', roomSize);
+    ceiling.setAttribute('height', roomSize);
     ceiling.setAttribute('color', '#444');
     room.appendChild(ceiling);
+
+    // Paredes
+    if (!neighbors.north) {
+        room.appendChild(createWall('0 2 -5', '10 4 0.2'));
+    }
+    else {
+        // Si hay vecino al norte, creamos una pared con puerta
+        //createDoor(room, 'north', roomSize);
+        createWallWithHole(room, 'north', roomSize);
+    }
+
+    if (!neighbors.south) {
+        room.appendChild(createWall('0 2 5', '10 4 0.2'));
+    } else {
+        // Si hay vecino al sur, creamos una pared con puerta
+        createDoor(room, 'south', roomSize);
+        createWallWithHole
+    }
+
+    if (!neighbors.east) {
+        room.appendChild(createWall('5 2 0', '0.2 4 10'));
+    }
+    else {
+        // Si hay vecino al este, creamos una pared con puerta
+        createDoor(room, 'east', roomSize);
+        createWallWithHole(room, 'east', roomSize);
+    }
+    if (!neighbors.west) {
+        room.appendChild(createWall('-5 2 0', '0.2 4 10'));
+    }
+    else {
+        // Si hay vecino al oeste, creamos una pared con puerta
+        //createDoor(room, 'west', roomSize);
+        createWallWithHole(room, 'west', roomSize);
+    }
+}
+
+function createWall(position, size) {
+    const wall = document.createElement('a-box');
+
+    const [w, h, d] = size.split(' ');
+
+    wall.setAttribute('position', position);
+    wall.setAttribute('width', w);
+    wall.setAttribute('height', h);
+    wall.setAttribute('depth', d);
+    wall.setAttribute('color', '#555');
+
+    return wall;
+}
+
+function createWallWithHole(room, direction, roomSize) {
+
+    const doorW = 1;     
+    const doorH = 2;     
+    const wallH = 4;     
+    const thickness = 0.2; 
+    const half = roomSize / 2;
+
+    // eje principal de la pared
+    const isZ = direction === 'north' || direction === 'south';
+    const sign = (direction === 'north' || direction === 'west') ? -1 : 1;
+
+    // dimensiones segmentadas
+    const sideSize = (roomSize - doorW) / 2;
+    const topSize = wallH - doorH;
+
+    // posiciones comunes
+    const mainOffset = half * sign;
+
+    const sideOffset = doorW / 2 + sideSize / 2;
+    const topY = doorH + topSize / 2;
+
+    // helpers
+    const makePart = (pos, size) => createWall(pos, size);
+
+    if (isZ) {
+        // pared en Z (north/south)
+        room.appendChild(makePart(
+            `${-sideOffset} 2 ${mainOffset}`,
+            `${sideSize} ${wallH} ${thickness}`
+        ));
+        room.appendChild(makePart(
+            `${sideOffset} 2 ${mainOffset}`,
+            `${sideSize} ${wallH} ${thickness}`
+        ));
+        room.appendChild(makePart(
+            `0 ${topY} ${mainOffset}`,
+            `${doorW} ${topSize} ${thickness}`
+        ));
+    } else {
+        // pared en X (east/west)
+        room.appendChild(makePart(
+            `${mainOffset} 2 ${-sideOffset}`,
+            `${thickness} ${wallH} ${sideSize}`
+        ));
+        room.appendChild(makePart(
+            `${mainOffset} 2 ${sideOffset}`,
+            `${thickness} ${wallH} ${sideSize}`
+        ));
+        room.appendChild(makePart(
+            `${mainOffset} ${topY} 0`,
+            `${thickness} ${topSize} ${doorW}`
+        ));
+    }
+}
+
+function createDoor(room, direction, roomSize) {
+
+    var size = roomSize / 2;
+
+    const pivot = document.createElement('a-entity');
+
+    pivot.setAttribute('door', `direction: ${direction}`);
+
+    const door = document.createElement('a-box');
+
+    door.setAttribute('class', 'interactable');
+    door.setAttribute('interactable', '');
+
+    door.setAttribute('width', '1');
+    door.setAttribute('height', '2');
+    door.setAttribute('depth', '0.2');
+    door.setAttribute('color', '#6b4f3a');
+
+    door.setAttribute('position', '0 1 0');
+
+    switch (direction) {
+        case 'north':
+            pivot.setAttribute('position', `0 0 -${size}`);
+            pivot.setAttribute('rotation', '0 0 0');
+            break;
+        case 'south':
+            pivot.setAttribute('position', `0 0 ${size}`);
+            pivot.setAttribute('rotation', '0 180 0');
+            break;
+        case 'east':
+            pivot.setAttribute('position', `${size} 0 0`);
+            pivot.setAttribute('rotation', '0 90 0');
+            break;
+        case 'west':
+            pivot.setAttribute('position', `-${size} 0 0`);
+            pivot.setAttribute('rotation', '0 -90 0');
+            break;
+    }
+
+    pivot.appendChild(door);
+    room.appendChild(pivot);
+
+    return pivot;
+}
+
+function createDoorOutdated(room, direction) {
+
+    const pivot = document.createElement('a-entity');
+    pivot.setAttribute('door', '');
+
+    const door = document.createElement('a-box');
+    door.setAttribute('class', 'interactable');
+    door.setAttribute('interactable', '');
+    door.setAttribute('width', '1');
+    door.setAttribute('height', '2');
+    door.setAttribute('depth', '0.2');
+    door.setAttribute('color', 'brown');
+
+    switch(direction) {
+        case 'north':
+            pivot.setAttribute('position', '0 0 -5');
+            pivot.setAttribute('rotation', '0 0 0');
+            door.setAttribute('position', '0.5 1 0');
+            break;
+
+        case 'south':
+            pivot.setAttribute('position', '0 0 5');
+            pivot.setAttribute('rotation', '0 180 0');
+            door.setAttribute('position', '0.5 1 0');
+            break;
+
+        case 'east':
+            pivot.setAttribute('position', '5 0 0');
+            pivot.setAttribute('rotation', '0 -90 0');
+            door.setAttribute('position', '0.5 1 0');
+            break;
+
+        case 'west':
+            pivot.setAttribute('position', '-5 0 0');
+            pivot.setAttribute('rotation', '0 90 0');
+            door.setAttribute('position', '0.5 1 0');
+            break;
+    }
+
+    pivot.appendChild(door);
+    room.appendChild(pivot);
 }

@@ -2,6 +2,9 @@
 
 AFRAME.registerComponent('door', {
 
+    schema: {
+        event: { type: 'string', default: 'north' }
+    },
 
     init: function () {
         this.isOpen = false;
@@ -24,7 +27,10 @@ AFRAME.registerComponent('door', {
 
     toggleDoor: function () {
         this.isOpen = !this.isOpen;
-        this.el.setAttribute('rotation', this.isOpen ? '0 -90 0' : '0 0 0');
+
+        const rotation = this.isOpen ? '0 -90 0' : '0 0 0';
+
+        this.el.setAttribute('rotation', rotation);
         console.log("Puerta interactuada, estado:", this.isOpen ? "Abierta" : "Cerrada");
     },
 
