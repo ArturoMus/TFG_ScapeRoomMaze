@@ -3,13 +3,16 @@
 AFRAME.registerComponent('door', {
 
     schema: {
-        event: { type: 'string', default: 'north' }
+        direction: { type: 'string', default: 'north' },
+        openRotation: { type: 'number', default: -90 }
     },
 
     init: function () {
         this.isOpen = false;
         this.isLocked = true;
+        this.hasPuzzle = false;
 
+        this.initialRotation = this.el.getAttribute('rotation') || {x: 0, y: 0, z: 0};
         
         this.el.addEventListener('openDoor', () => {
             this.unlock();
@@ -28,9 +31,18 @@ AFRAME.registerComponent('door', {
     toggleDoor: function () {
         this.isOpen = !this.isOpen;
 
-        const rotation = this.isOpen ? '0 -90 0' : '0 0 0';
+        // Calculamos la nueva rotación en el eje Y
+        const newY = this.isOpen 
+            ? this.initialRotation.y + this.data.openRotation 
+            : this.initialRotation.y;
 
-        this.el.setAttribute('rotation', rotation);
+        // Aplicamos manteniendo X y Z originales
+        this.el.setAttribute('rotation', {
+            x: this.initialRotation.x,
+            y: newY,
+            z: this.initialRotation.z
+        });
+        
         console.log("Puerta interactuada, estado:", this.isOpen ? "Abierta" : "Cerrada");
     },
 
