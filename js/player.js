@@ -34,6 +34,7 @@ AFRAME.registerComponent('player-controls', {
     schema: { speed: { type: 'number', default: 0.1 } },
 
     init: function () {
+        this.speed = 0.1;
         this.keys = {};
         this.camera = this.el.querySelector('[camera]');
 
@@ -45,6 +46,45 @@ AFRAME.registerComponent('player-controls', {
     },
 
     tick: function () {
+      if (!this.camera) return;
+
+      const pos = this.el.object3D.position;
+
+      const direction = new THREE.Vector3();
+      this.camera.object3D.getWorldDirection(direction);
+
+      direction.y = 0;
+      direction.normalize();
+
+      const left = new THREE.Vector3().crossVectors(new THREE.Vector3(0,1,0), direction).normalize();
+      const right = new THREE.Vector3().crossVectors(direction, new THREE.Vector3(0,1,0)).normalize();
+
+      let move = new THREE.Vector3();
+
+      if (this.keys['w']) move.add(direction.clone().multiplyScalar(-this.data.speed));
+      if (this.keys['s']) move.add(direction.clone().multiplyScalar(this.data.speed));
+      if (this.keys['a']) move.add(left.clone().multiplyScalar(-this.data.speed));
+      if (this.keys['d']) move.add(right.clone().multiplyScalar(-this.data.speed));
+
+      let nextPos = pos.clone().add(move);
+
+      // mover en X
+      let testX = pos.clone();
+      testX.x = nextPos.x;
+
+      if (!isColliding(testX)) {
+          pos.x = testX.x;
+      }
+
+      // mover en Z
+      let testZ = pos.clone();
+      testZ.z = nextPos.z;
+
+      if (!isColliding(testZ)) {
+          pos.z = testZ.z;
+      }
+    }
+    /*tick: function () {
         if (!this.camera) return;
 
         // Dirección a la que mira la cámara
@@ -68,5 +108,5 @@ AFRAME.registerComponent('player-controls', {
             const right = new THREE.Vector3().crossVectors(direction, new THREE.Vector3(0,1,0)).normalize();
             pos.add(right.multiplyScalar(-this.data.speed));
         }
-    }
+    }*/
 });

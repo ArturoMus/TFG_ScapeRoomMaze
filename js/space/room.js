@@ -91,7 +91,7 @@ function createRoomStructure(room, roomSize, neighbors) {
 function createWall(position, size) {
     const wall = document.createElement('a-box');
 
-    const [w, h, d] = size.split(' ');
+    const [w, h, d] = size.split(' ').map(Number);
 
     wall.setAttribute('position', position);
     wall.setAttribute('width', w);
@@ -99,12 +99,18 @@ function createWall(position, size) {
     wall.setAttribute('depth', d);
     wall.setAttribute('color', '#555');
 
+    colliders.push({
+        el: wall,
+        width: w,
+        depth: d
+    });
+
     return wall;
 }
 
 function createWallWithHole(room, direction, roomSize) {
 
-    const doorW = 1;     
+    const doorW = 1.5;     
     const doorH = 2;     
     const wallH = 4;     
     const thickness = 0.2; 
@@ -171,7 +177,7 @@ function createDoor(room, direction, roomSize) {
     door.setAttribute('class', 'interactable');
     door.setAttribute('interactable', '');
 
-    door.setAttribute('width', '1');
+    door.setAttribute('width', '1.5');
     door.setAttribute('height', '2');
     door.setAttribute('depth', '0.2');
     door.setAttribute('color', '#6b4f3a');
@@ -199,6 +205,18 @@ function createDoor(room, direction, roomSize) {
 
     pivot.appendChild(door);
     room.appendChild(pivot);
+
+    const isZ = direction === 'north' || direction === 'south';
+    
+    const collider={
+        el: door,
+        width: isZ ? 1 : 0.2,
+        depth: isZ ? 0.2 : 1,
+        disabled: false,
+    }
+    colliders.push(collider);
+    
+    pivot.colliderRef = collider;
 
     return pivot;
 }

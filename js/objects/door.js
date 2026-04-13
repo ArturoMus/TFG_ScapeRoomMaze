@@ -12,7 +12,9 @@ AFRAME.registerComponent('door', {
         this.isLocked = true;
         this.hasPuzzle = false;
 
-        this.initialRotation = this.el.getAttribute('rotation') || {x: 0, y: 0, z: 0};
+        const pos = this.el.getAttribute('position');
+        this.initialPos = { x: pos.x, y: pos.y, z: pos.z };
+
         
         this.el.addEventListener('openDoor', () => {
             this.unlock();
@@ -29,20 +31,33 @@ AFRAME.registerComponent('door', {
     },
 
     toggleDoor: function () {
+        if (this.isOpen) return;
         this.isOpen = !this.isOpen;
 
+        if (this.el.colliderRef) {
+            this.el.colliderRef.disabled = true;
+            console.log("Colisión desactivada para la puerta");
+        }
+
+        this.el.setAttribute('animation', {
+            property: 'position',
+            to: `${this.initialPos.x} ${this.initialPos.y - 3} ${this.initialPos.z}`,
+            dur: 1000,
+            easing: 'easeOutQuad'
+        });
+
         // Calculamos la nueva rotación en el eje Y
-        const newY = this.isOpen 
+        /*const newY = this.isOpen 
             ? this.initialRotation.y + this.data.openRotation 
-            : this.initialRotation.y;
+            : this.initialRotation.y;*/
 
         // Aplicamos manteniendo X y Z originales
-        this.el.setAttribute('rotation', {
+        /*this.el.setAttribute('rotation', {
             x: this.initialRotation.x,
             y: newY,
             z: this.initialRotation.z
-        });
-        
+        });*/
+
         console.log("Puerta interactuada, estado:", this.isOpen ? "Abierta" : "Cerrada");
     },
 
