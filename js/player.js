@@ -29,12 +29,24 @@ AFRAME.registerComponent('', {
 
 */
 
+//Helper para saber en que habiacion esta el jugador
+function getCurrentRoom(playerPos, roomSize) {
+
+    if (!window.rooms) return null;
+
+    // Como el origen del jugador está en el centro de la habitación, sumamos roomSize/2 para que al dividir por roomSize y hacer floor
+    const x = Math.floor((playerPos.x + roomSize / 2) / roomSize);
+    const z = Math.floor((playerPos.z + roomSize / 2) / roomSize);
+
+    return window.rooms[`room-${x}-${z}`];
+}
+
 // Primer borrador de componente para los controles del jugador
 AFRAME.registerComponent('player-controls', {
-    schema: { speed: { type: 'number', default: 0.1 } },
+    schema: { speed: { type: 'number', default: 0.075 } },
 
     init: function () {
-        this.speed = 0.1;
+        this.speed = 0.075;
         this.keys = {};
         this.camera = this.el.querySelector('[camera]');
 
@@ -46,43 +58,54 @@ AFRAME.registerComponent('player-controls', {
     },
 
     tick: function () {
-      if (!this.camera) return;
+        if (!this.camera) return;
+        if (window.gameState?.finished) return;
 
-      const pos = this.el.object3D.position;
+        const pos = this.el.object3D.position;
 
-      const direction = new THREE.Vector3();
-      this.camera.object3D.getWorldDirection(direction);
+        const direction = new THREE.Vector3();
+        this.camera.object3D.getWorldDirection(direction);
 
-      direction.y = 0;
-      direction.normalize();
+        direction.y = 0;
+        direction.normalize();
 
-      const left = new THREE.Vector3().crossVectors(new THREE.Vector3(0,1,0), direction).normalize();
-      const right = new THREE.Vector3().crossVectors(direction, new THREE.Vector3(0,1,0)).normalize();
+        const left = new THREE.Vector3().crossVectors(new THREE.Vector3(0,1,0), direction).normalize();
+        const right = new THREE.Vector3().crossVectors(direction, new THREE.Vector3(0,1,0)).normalize();
 
-      let move = new THREE.Vector3();
+        let move = new THREE.Vector3();
 
-      if (this.keys['w']) move.add(direction.clone().multiplyScalar(-this.data.speed));
-      if (this.keys['s']) move.add(direction.clone().multiplyScalar(this.data.speed));
-      if (this.keys['a']) move.add(left.clone().multiplyScalar(-this.data.speed));
-      if (this.keys['d']) move.add(right.clone().multiplyScalar(-this.data.speed));
+        if (this.keys['w']) move.add(direction.clone().multiplyScalar(-this.data.speed));
+        if (this.keys['s']) move.add(direction.clone().multiplyScalar(this.data.speed));
+        if (this.keys['a']) move.add(left.clone().multiplyScalar(-this.data.speed));
+        if (this.keys['d']) move.add(right.clone().multiplyScalar(-this.data.speed));
 
-      let nextPos = pos.clone().add(move);
+        let nextPos = pos.clone().add(move);
 
-      // mover en X
-      let testX = pos.clone();
-      testX.x = nextPos.x;
+        // mover en X
+        let testX = pos.clone();
+        testX.x = nextPos.x;
 
-      if (!isColliding(testX)) {
-          pos.x = testX.x;
-      }
+        if (!isColliding(testX)) {
+            pos.x = testX.x;
+        }
 
-      // mover en Z
-      let testZ = pos.clone();
-      testZ.z = nextPos.z;
+        // mover en Z
+        let testZ = pos.clone();
+        testZ.z = nextPos.z;
 
-      if (!isColliding(testZ)) {
-          pos.z = testZ.z;
-      }
+        if (!isColliding(testZ)) {
+            pos.z = testZ.z;
+        }
+
+        // Detectar habitación actual
+        const currentRoom = getCurrentRoom(pos, 10);
+        console.log("Habitación actual:", currentRoom ? currentRoom.id : "Ninguna");
+
+        if(!currentRoom) return;
+
+        if(currentRoom.isGoal && !window.gameState?.finished) {
+            endGame();
+        }
     }
     /*tick: function () {
         if (!this.camera) return;

@@ -43,6 +43,33 @@ AFRAME.registerComponent('puzzle-button-door', {
     }
 });
 
+AFRAME.registerComponent('puzzle-orb-pedestal', {
+    schema: {
+        doorId: { type: 'string' },
+        prevRoomId: { type: 'string' }
+    },
+
+    init: function () {
+        const currentRoom = this.el;
+        const prevRoom = document.getElementById(this.data.prevRoomId);
+        
+        // 1. Bloquear puerta
+        const door = document.getElementById(this.data.doorId);
+        if (door) door.components.door.isLocked = true;
+
+        // 2. Crear Orbe en la sala anterior (posicionado de forma que se vea)
+        if (prevRoom) {
+            const orb = createOrb('0 1.2 0'); 
+            prevRoom.appendChild(orb);
+        }
+
+        // 3. Crear Pedestal en la sala actual
+        // El pedestal le pasa el ID de la puerta que debe abrir
+        const pedestal = createPedestal('0 0 -4', '#' + this.data.doorId);
+        currentRoom.appendChild(pedestal);
+    }
+});
+
 /*AFRAME.registerComponent('puzzle-button-door', {
     init: function () {
         const room = this.el;

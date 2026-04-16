@@ -13,14 +13,72 @@
     <script src="js/space/graph.js"></script>
     <script src="js/space/room.js"></script>
     <script src="js/space/map.js"></script>
+    <script src="js/space/elements.js"></script>
     <script src="js/puzzles.js"></script>
     <script src="js/collision.js"></script>
+    <script src="js/game.js"></script>
+    <script src="js/objects/orb.js"></script>
+    <script src="js/objects/pedestal.js"></script>
+
 
 </head>
 <body>
-    <a-scene>
 
-            <!-- Jugador -->
+    <div id="overlay" style="
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        display: none;
+        justify-content: center;
+        align-items: center;
+        background: rgba(0,0,0,0.8);
+        color: white;
+        font-family: sans-serif;
+        z-index: 999;
+        flex-direction: column;
+    ">
+        <h1 id="overlay-title">(Pensar nombre juego)</h1>
+        <button id="start-button">Empezar</button>
+    </div>
+
+    <a-scene shadow="type: pcfsoft" light="defaultLightsEnabled: false">
+
+        <a-assets>
+            <!-- Texturas -->
+            <img id="wallTex" src="textures/Stone_Wall/StoneWallDiff.jpg">
+            <img id="wallNormal" src="textures/Stone_Wall/StoneWallNorjpg.jpg">
+            <img id="wallRough" src="textures/Stone_Wall/StoneWallRough.jpg">
+            <img id="floorTex" src="textures/Floor/StoneFloorDiff.jpg">
+            <img id="floorNormal" src="textures/Floor/StoneFloorNor.jpg">
+            <img id="floorRough" src="textures/Floor/StoneFloorRough.jpg">
+            <img id="fireballTex" src="textures/FireBall/FireBallDiff.jpg">
+            <img id="fireballNormal" src="textures/FireBall/FireBallNormal.jpg">
+            <img id="fireballRough" src="textures/FireBall/FireBallRough.jpg">
+            <img id="fireballEmissive" src="textures/FireBall/FireBallEmissive.jpg">
+
+            <!-- Sonidos -->
+            <audio id="buttonSound" src="sounds/ButtonUnlock.wav" preload="auto"></audio>
+            <audio id="doorSound" src="sounds/doorUnlock.mp3" preload="auto"></audio>
+            <audio id="fireTorch" src="sounds/FireTorch.mp3" preload="auto"></audio>
+            <audio id="ambientSound" src="sounds/ambientSound.wav" preload="auto"></audio>
+            <audio id="ambientSound2" src="sounds/ambientSound2.mp3" preload="auto"></audio>
+        </a-assets>
+
+        <a-entity id="ambient-audio-1"
+            sound="src: #ambientSound; autoplay: true; loop: true; volume: 0.4; positional: false">
+        </a-entity>
+
+        <a-entity id="ambient-audio-2"
+            sound="src: #ambientSound2; autoplay: true; loop: true; volume: 0.2; positional: false">
+        </a-entity>
+
+        <a-sky color="#111"></a-sky>
+        <!-- Poner color al 333 e intensidad al 0.6 para hacerlo más oscurito-->
+        <a-entity light="type: ambient; color: #999; intensity: 0.6"></a-entity>
+
+            <!-- Jugador -->a
             <!--
                 Ahora los controles son con wasd, para cuando use vr probar a añadir esto
                 movement-controls="fly: false; speed: 0.1;"
@@ -50,38 +108,7 @@
                 -->
             </a-entity>
         </a-entity>
-        
-        <!--<a-box position="0 1 -3" color="red" class="interactable" interactable></a-box>
-        <a-sphere position="2 1 -5" radius="1" color="blue" class="interactable" interactable></a-sphere>-->
-        
-        <a-entity map>
-
-        </a-entity>
-        <!--<a-box 
-            id="button1"
-            class="interactable"
-            position="1 1 -3"
-            depth="0.3"
-            height="0.3"
-            width="0.3"
-            color="red"
-            button="event: openDoor"
-            interactable>
-        </a-box>
-
-        <a-entity id="doorPivot" position="0 0 -4" door>
-            <a-box 
-                class="interactable"
-                position="-0.5 1 0"
-                depth="0.2"
-                height="2"
-                width="1"
-                color="brown"
-                interactable>
-            </a-box>
-        </a-entity> -->
-        <!--<a-plane rotation="-90 0 0" width="15" height="15" color="green"></a-plane>-->
-        <a-sky color="#ECECEC"></a-sky>
+        <a-entity map></a-entity>
     </a-scene>
 </body>
 </html>

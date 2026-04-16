@@ -15,6 +15,15 @@ AFRAME.registerComponent('door', {
         const pos = this.el.getAttribute('position');
         this.initialPos = { x: pos.x, y: pos.y, z: pos.z };
 
+        this.el.setAttribute('sound', {
+            src: '#doorSound',
+            autoplay: false,
+            volume: 6,
+            distanceModel: 'exponential',
+            maxDistance: 8,
+            rolloffFactor: 1.25,
+            refDistance: 1
+        });
         
         this.el.addEventListener('openDoor', () => {
             this.unlock();
@@ -39,12 +48,14 @@ AFRAME.registerComponent('door', {
             console.log("Colisión desactivada para la puerta");
         }
 
+        this.el.components.sound.playSound();
         this.el.setAttribute('animation', {
             property: 'position',
             to: `${this.initialPos.x} ${this.initialPos.y - 3} ${this.initialPos.z}`,
-            dur: 1000,
+            dur: 5000,
             easing: 'easeOutQuad'
         });
+        
 
         // Calculamos la nueva rotación en el eje Y
         /*const newY = this.isOpen 

@@ -13,6 +13,8 @@ AFRAME.registerComponent('map', {
 
         const rooms = createGraph(layout);
 
+        window.rooms = rooms; // para debugear
+
         renderMap(rooms, roomSize);
         
         assignPuzzlesPremium(rooms);
@@ -87,12 +89,36 @@ function assignPuzzlesPremium(rooms) {
         door.hasPuzzle = true;
         currentRoom.puzzleDoor = door; // Mantenemos la referencia por si acaso
 
-        // Aplicar el componente de A-Frame
-        currentRoom.el.setAttribute('puzzle-button-door', {
-            doorId: door.el.id,
-        });
+        if (i % 2 === 0) {
+            // PUZZLE DE BOTÓN
+            currentRoom.el.setAttribute('puzzle-button-door', {
+                doorId: door.el.id,
+            });
+            console.log(`[Botón] Sala ${currentRoom.id} abre ${door.el.id}`);
+        } 
+        else {
+            // PUZZLE DE ORBE + PEDESTAL
+            // El orbe se spawnea en la sala anterior (pathCoords[i-1])
+            const prevRoomCoords = pathCoords[i-1];
+            const prevRoomId = `room-${prevRoomCoords.x}-${prevRoomCoords.z}`;
+            
+            currentRoom.el.setAttribute('puzzle-orb-pedestal', {
+                doorId: door.el.id,
+                prevRoomId: prevRoomId
+            });
+            console.log(`[Orbe] Sala ${currentRoom.id} necesita orbe de ${prevRoomId} para abrir ${door.el.id}`);
+        }
 
         console.log(`[Puzzle] Sala ${currentRoom.id} abre puerta ${directionToNext} (${door.el.id})`);
+    }
+
+    const last = pathCoords[pathCoords.length - 1];
+    const goalRoomId = `room-${last.x}-${last.z}`;
+
+    const goalRoom = rooms[goalRoomId];
+    if (goalRoom) {
+        goalRoom.isGoal = true;
+        console.log("Sala final:", goalRoomId);
     }
 }
 

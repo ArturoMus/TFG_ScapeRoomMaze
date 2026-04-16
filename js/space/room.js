@@ -39,6 +39,11 @@ function createBasicRoom(roomSize, id, position, neighbors = null) {
         room.appendChild(roomBox4);
     // --------------------------------------------------------------
 
+    const h = 2; 
+    const offset = roomSize / 2 - 1; 
+    room.appendChild(createTorch(`${-offset} ${h} ${-offset}`));
+    room.appendChild(createTorch(`${offset} ${h} ${offset}`));
+
     return room;
 }
 
@@ -49,7 +54,16 @@ function createRoomStructure(room, roomSize, neighbors) {
     floor.setAttribute('rotation', '-90 0 0');
     floor.setAttribute('width', roomSize);
     floor.setAttribute('height', roomSize);
-    floor.setAttribute('color', '#999');
+    floor.setAttribute('material', {
+        src: '#floorTex',
+        normalMap: '#floorNormal',
+        //roughnessMap: '#floorRough',
+        repeat: '2 2'
+    });
+    floor.setAttribute('shadow', {
+        cast: true,
+        receive: true
+    });
     room.appendChild(floor);
 
     // Techo
@@ -58,7 +72,16 @@ function createRoomStructure(room, roomSize, neighbors) {
     ceiling.setAttribute('position', '0 4 0');
     ceiling.setAttribute('width', roomSize);
     ceiling.setAttribute('height', roomSize);
-    ceiling.setAttribute('color', '#444');
+    ceiling.setAttribute('material', {
+        src: '#wallTex',
+        //normalMap: '#wallNormal',
+        //roughnessMap: '#wallRough',
+        repeat: '2 2'
+    });
+    ceiling.setAttribute('shadow', {
+        cast: true,
+        receive: true
+    });
     room.appendChild(ceiling);
 
     // Paredes
@@ -97,12 +120,22 @@ function createWall(position, size) {
     wall.setAttribute('width', w);
     wall.setAttribute('height', h);
     wall.setAttribute('depth', d);
-    wall.setAttribute('color', '#555');
+    wall.setAttribute('material', {
+        src: '#wallTex',
+        //normalMap: '#wallNormal',
+        //roughnessMap: '#wallRough',
+        repeat: '2 1'
+    });
+    wall.setAttribute('shadow', {
+        cast: true,
+        receive: true
+    });
 
     colliders.push({
         el: wall,
         width: w,
-        depth: d
+        depth: d,
+        disabled: false
     });
 
     return wall;
@@ -136,11 +169,11 @@ function createWallWithHole(room, direction, roomSize) {
     if (isZ) {
         // pared en Z (north/south)
         room.appendChild(makePart(
-            `${-sideOffset} 2 ${mainOffset}`,
+            `${-sideOffset} ${wallH/2} ${mainOffset}`,
             `${sideSize} ${wallH} ${thickness}`
         ));
         room.appendChild(makePart(
-            `${sideOffset} 2 ${mainOffset}`,
+            `${sideOffset} ${wallH/2} ${mainOffset}`,
             `${sideSize} ${wallH} ${thickness}`
         ));
         room.appendChild(makePart(
@@ -150,11 +183,11 @@ function createWallWithHole(room, direction, roomSize) {
     } else {
         // pared en X (east/west)
         room.appendChild(makePart(
-            `${mainOffset} 2 ${-sideOffset}`,
+            `${mainOffset} ${wallH/2} ${-sideOffset}`,
             `${thickness} ${wallH} ${sideSize}`
         ));
         room.appendChild(makePart(
-            `${mainOffset} 2 ${sideOffset}`,
+            `${mainOffset} ${wallH/2} ${sideOffset}`,
             `${thickness} ${wallH} ${sideSize}`
         ));
         room.appendChild(makePart(
@@ -164,59 +197,3 @@ function createWallWithHole(room, direction, roomSize) {
     }
 }
 
-function createDoor(room, direction, roomSize) {
-
-    var size = roomSize / 2;
-
-    const pivot = document.createElement('a-entity');
-
-    pivot.setAttribute('door', `direction: ${direction}`);
-
-    const door = document.createElement('a-box');
-
-    door.setAttribute('class', 'interactable');
-    door.setAttribute('interactable', '');
-
-    door.setAttribute('width', '1.5');
-    door.setAttribute('height', '2');
-    door.setAttribute('depth', '0.2');
-    door.setAttribute('color', '#6b4f3a');
-
-    door.setAttribute('position', '0 1 0');
-
-    switch (direction) {
-        case 'north':
-            pivot.setAttribute('position', `0 0 -${size}`);
-            pivot.setAttribute('rotation', '0 0 0');
-            break;
-        case 'south':
-            pivot.setAttribute('position', `0 0 ${size}`);
-            pivot.setAttribute('rotation', '0 180 0');
-            break;
-        case 'east':
-            pivot.setAttribute('position', `${size} 0 0`);
-            pivot.setAttribute('rotation', '0 90 0');
-            break;
-        case 'west':
-            pivot.setAttribute('position', `-${size} 0 0`);
-            pivot.setAttribute('rotation', '0 -90 0');
-            break;
-    }
-
-    pivot.appendChild(door);
-    room.appendChild(pivot);
-
-    const isZ = direction === 'north' || direction === 'south';
-    
-    const collider={
-        el: door,
-        width: isZ ? 1 : 0.2,
-        depth: isZ ? 0.2 : 1,
-        disabled: false,
-    }
-    colliders.push(collider);
-    
-    pivot.colliderRef = collider;
-
-    return pivot;
-}
