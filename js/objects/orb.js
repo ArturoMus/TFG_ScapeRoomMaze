@@ -2,7 +2,7 @@
 
 AFRAME.registerComponent('orb', {
     init: function () {
-        this.el.setAttribute('class', 'interactable');
+        //this.el.setAttribute('interactable', '');
         this.isCarried = false;
         this.player = document.querySelector('#player'); // Tu entidad de jugador
     },
@@ -16,8 +16,10 @@ AFRAME.registerComponent('orb', {
 
             // Lo emparentamos al jugador para que se mueva con él
             // Si es PC, lo pegamos a la cámara. Si es VR, idealmente a la mano.
-            const camera = document.querySelector('[camera]');
-            camera.appendChild(this.el);
+            const holder = document.querySelector('#orb-holder');
+            holder.appendChild(this.el);
+
+            this.el.setAttribute('position', '0 0 0');
             
             // Posición relativa frente a la cara/mano
             this.el.setAttribute('position', '0.3 -0.3 -0.5'); 

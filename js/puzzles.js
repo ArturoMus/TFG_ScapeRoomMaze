@@ -52,10 +52,20 @@ AFRAME.registerComponent('puzzle-orb-pedestal', {
     init: function () {
         const currentRoom = this.el;
         const prevRoom = document.getElementById(this.data.prevRoomId);
+
+
+        const existingDoorPivot = document.querySelector('#' + this.data.doorId);
+
+        console.log("YAAAAAAS.");
+
+        if(!existingDoorPivot) {
+            console.warn("No se encontró la puerta con ID:", this.data.doorId);
+            return;
+        }
+
+        console.log("Se encontró la puerta con ID:", this.data.doorId);
         
-        // 1. Bloquear puerta
-        const door = document.getElementById(this.data.doorId);
-        if (door) door.components.door.isLocked = true;
+        existingDoorPivot.components.door.isLocked = true;
 
         // 2. Crear Orbe en la sala anterior (posicionado de forma que se vea)
         if (prevRoom) {
@@ -65,7 +75,7 @@ AFRAME.registerComponent('puzzle-orb-pedestal', {
 
         // 3. Crear Pedestal en la sala actual
         // El pedestal le pasa el ID de la puerta que debe abrir
-        const pedestal = createPedestal('0 0 -4', '#' + this.data.doorId);
+        const pedestal = createPedestal('0 0 -4', this.data.doorId);
         currentRoom.appendChild(pedestal);
     }
 });

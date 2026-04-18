@@ -79,7 +79,7 @@ function createTorch(position) {
         shader: 'flat',
         src: '#fireballEmissive',
         color: '#ffffff',
-        blending: 'additive', // Esto hará que parezca energía real y no un sólido
+        blending: 'additive',
         fog: false
     });
     flame.setAttribute('animation', {
@@ -130,6 +130,7 @@ function createOrb(position) {
     orb.setAttribute('material', 'emissive: #00ffff; emissiveIntensity: 0.5');
     orb.setAttribute('orb', ''); // Añade el componente
     orb.setAttribute('class', 'interactable');
+    orb.setAttribute('interactable', '');
     return orb;
 }
 
@@ -141,6 +142,8 @@ function createPedestal(position, doorSelector) {
     base.setAttribute('radius', '0.3');
     base.setAttribute('height', '1');
     base.setAttribute('color', '#444');
+    base.setAttribute('class', 'interactable');
+    base.setAttribute('interactable', '');
     base.setAttribute('pedestal', {
         target: '#' + doorSelector
     });

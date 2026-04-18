@@ -54,6 +54,7 @@ function createRoomStructure(room, roomSize, neighbors) {
     floor.setAttribute('rotation', '-90 0 0');
     floor.setAttribute('width', roomSize);
     floor.setAttribute('height', roomSize);
+    floor.setAttribute('static-body', '');
     floor.setAttribute('material', {
         src: '#floorTex',
         normalMap: '#floorNormal',
