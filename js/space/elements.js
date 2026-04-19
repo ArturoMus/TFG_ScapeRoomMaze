@@ -12,7 +12,6 @@ function createDoor(room, direction, roomSize) {
 
     door.setAttribute('class', 'interactable');
     door.setAttribute('interactable', '');
-
     door.setAttribute('width', '1.5');
     door.setAttribute('height', '2');
     door.setAttribute('depth', '0.2');
@@ -21,6 +20,7 @@ function createDoor(room, direction, roomSize) {
         cast: true,
         receive: true
     });
+    door.setAttribute('static-body', '');
 
     door.setAttribute('position', '0 1 0');
 
@@ -128,6 +128,12 @@ function createOrb(position) {
     orb.setAttribute('radius', '0.2');
     orb.setAttribute('color', '#00ffff');
     orb.setAttribute('material', 'emissive: #00ffff; emissiveIntensity: 0.5');
+    orb.setAttribute('dynamic-body', {
+        mass: 1,
+        shape: 'sphere',
+        linearDamping: 0.4,
+        angularDamping: 0.4
+    })
     orb.setAttribute('orb', ''); // Añade el componente
     orb.setAttribute('class', 'interactable');
     orb.setAttribute('interactable', '');
@@ -142,6 +148,7 @@ function createPedestal(position, doorSelector) {
     base.setAttribute('radius', '0.3');
     base.setAttribute('height', '1');
     base.setAttribute('color', '#444');
+    base.setAttribute('static-body', '');
     base.setAttribute('class', 'interactable');
     base.setAttribute('interactable', '');
     base.setAttribute('pedestal', {
