@@ -61,6 +61,67 @@ function createDoor(room, direction, roomSize) {
     return pivot;
 }
 
+function createButton(position, targetSelector, room) {
+
+    const button = document.createElement('a-box');
+    button.setAttribute('id', room.getAttribute('id') + '-button');
+
+    button.setAttribute('position', position);
+    button.setAttribute('depth', '0.2');
+    button.setAttribute('height', '0.3');
+    button.setAttribute('width', '0.3');
+    button.setAttribute('color', 'red');
+    button.setAttribute('static-body', '');
+    
+    // Configuramos el botón para que dispare el evento a la puerta que encontramos
+    button.setAttribute('button', {
+        event: 'openDoor',
+        target: '#' + targetSelector
+    });
+
+    button.setAttribute('interactable', '');
+    
+    return button;
+}
+
+// POR SI QUIERO HACER LA HITBOX DEL BOTÓN MAS GRANDE
+// ----> Así para cambiar el color del botón he de cambiar el método interact
+function createButtonWithHitbox(position, targetSelector, room) {
+
+    const wrapper = document.createElement('a-entity');
+    wrapper.setAttribute('position', position);
+
+
+    const button = document.createElement('a-box');
+    
+    button.setAttribute('depth', '0.2');
+    button.setAttribute('height', '0.3');
+    button.setAttribute('width', '0.3');
+    button.setAttribute('color', 'red');
+    
+    wrapper.appendChild(button);
+
+    const hitbox = document.createElement('a-box');
+    hitbox.setAttribute('depth', '0.6');
+    hitbox.setAttribute('height', '0.6');
+    hitbox.setAttribute('width', '0.6');
+
+    hitbox.setAttribute('visible', false);
+    hitbox.setAttribute('static-body', '');
+    
+    // Configuramos el botón para que dispare el evento a la puerta que encontramos
+    hitbox.setAttribute('button', {
+        event: 'openDoor',
+        target: '#' + targetSelector
+    });
+
+    wrapper.appendChild(hitbox);
+
+    wrapper.setAttribute('id', room.getAttribute('id') + '-button');
+    
+    return wrapper;
+}
+
 function createTorch(position) {
 
     const torch = document.createElement('a-entity');
@@ -141,10 +202,9 @@ function createOrb(position) {
 }
 
 function createPedestal(position, doorSelector) {
-    const group = document.createElement('a-entity');
-    group.setAttribute('position', position);
 
     const base = document.createElement('a-cylinder');
+    base.setAttribute('position', position);
     base.setAttribute('radius', '0.3');
     base.setAttribute('height', '1');
     base.setAttribute('color', '#444');
@@ -152,9 +212,9 @@ function createPedestal(position, doorSelector) {
     base.setAttribute('class', 'interactable');
     base.setAttribute('interactable', '');
     base.setAttribute('pedestal', {
-        target: '#' + doorSelector
+        target: '#' + doorSelector,
+        puzzleID: doorSelector
     });
-    
-    group.appendChild(base);
-    return group;
+
+    return base;
 }

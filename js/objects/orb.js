@@ -4,7 +4,8 @@ AFRAME.registerComponent('orb', {
     init: function () {
         //this.el.setAttribute('interactable', '');
         this.isCarried = false;
-        this.holder = null;        
+        this.holder = null;
+        this.isPlaced = false;        
         /*this.player = document.querySelector('#player'); // Entido que el jugador 
         this.camera = this.player.querySelector('[camera]'); // La cámara dentro del jugador
 
@@ -26,6 +27,8 @@ AFRAME.registerComponent('orb', {
 
     grab: function (handEl) {
 
+        if(this.isPlaced) return;
+        
         this.isCarried = true;
         this.holder = handEl;
 
@@ -46,17 +49,24 @@ AFRAME.registerComponent('orb', {
 
     release: function () {
 
+
         this.isCarried = false;
+
+        window.playerState.hasOrb = false;
+        window.playerState.currentOrb = null;
 
         if (this.el.body) {
 
             this.el.body.collisionResponse = true;
 
-            this.el.body.type = CANNON.Body.DYNAMIC;
-
+            // Justo antes de cambiar el tipo
             this.el.body.velocity.set(0,0,0);
             this.el.body.angularVelocity.set(0,0,0);
 
+            this.el.body.previousPosition.copy(this.el.body.position);
+            this.el.body.interpolatedPosition.copy(this.el.body.position);
+
+            this.el.body.type = CANNON.Body.DYNAMIC;
             this.el.body.wakeUp();
 
             const camera = document.querySelector('[camera]');
@@ -64,20 +74,19 @@ AFRAME.registerComponent('orb', {
             camera.object3D.getWorldDirection(dir);
             dir.negate();
 
-            requestAnimationFrame(() => {
-                this.el.body.applyImpulse(
-                    new CANNON.Vec3(dir.x * 3, dir.y * 3, dir.z * 3),
-                    this.el.body.position
-                );
-            });
+            this.el.body.applyImpulse(
+                new CANNON.Vec3(dir.x * 3, dir.y * 3, dir.z * 3),
+                this.el.body.position
+            );
         }
     },
 
     tick: function () {
 
-        console.log("VEL:", this.el.body.velocity.clone());
+        if(this.isPlaced) return;
 
-        // Si no se está llevando, no tocamos el body.position NUNCA.
+        //console.log("VEL:", this.el.body.velocity.clone());
+
         if(!this.isCarried || !this.holder || !this.el.body) return;
 
         const targetPos = new THREE.Vector3();
@@ -86,7 +95,7 @@ AFRAME.registerComponent('orb', {
         if(this.holder.components.camera) {
             const camWorldDir = new THREE.Vector3();
             this.holder.object3D.getWorldDirection(camWorldDir);
-            // camWorldDir suele apuntar hacia atrás, así que multiplicamos por negativo para ir al frente
+            // como camWorldDir suele apuntar hacia atrás, multiplip por negativo para ir al frente
             targetPos.add(camWorldDir.multiplyScalar(-1.2));
             targetPos.y -= 0.3; // Bajamos un poco el orbe para que quede a la altura de las manos 
         }
