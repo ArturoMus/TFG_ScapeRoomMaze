@@ -69,6 +69,7 @@ AFRAME.registerComponent('door', {
             dur: 5000,
             easing: 'easeOutQuad'
         });
+        window.rebuildNavMesh();
         
 
         // Calculamos la nueva rotación en el eje Y
@@ -123,6 +124,7 @@ AFRAME.registerComponent('door', {
                 this.el.colliderRef.disabled = true;
             }
 
+            window.rebuildNavMesh();
             // EMITIR UN SONIDO PORFA
             console.log("Puerta completamente abierta (pressure plate)");
         }

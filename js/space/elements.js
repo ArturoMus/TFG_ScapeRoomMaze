@@ -20,7 +20,7 @@ function createDoor(room, direction, roomSize) {
         cast: true,
         receive: true
     });
-    door.setAttribute('static-body', '');
+    //door.setAttribute('static-body', '');
 
     door.setAttribute('position', '0 1 0');
 
@@ -48,7 +48,7 @@ function createDoor(room, direction, roomSize) {
 
     const isZ = direction === 'north' || direction === 'south';
     
-    const collider={
+    /*const collider={
         el: pivot,
         width: isZ ? 1 : 0.2,
         depth: isZ ? 0.2 : 1,
@@ -56,7 +56,7 @@ function createDoor(room, direction, roomSize) {
     }
     colliders.push(collider);
     
-    pivot.colliderRef = collider;
+    pivot.colliderRef = collider;*/
 
     return pivot;
 }

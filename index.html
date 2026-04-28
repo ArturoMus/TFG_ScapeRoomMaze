@@ -134,7 +134,8 @@
             </a-entity>
         </a-entity>-->
         <a-entity id="player"
-                movement-controls="controls: gamepad, keyboard; speed: 0.2; fly: false"
+                movement-controls="controls: gamepad, keyboard; speed: 0.2; fly: false; constrainToNavMesh: true"
+                gamepad-controls="rotationSensitivity: 0"
                 position="0 0 0">
 
             <a-entity id="camera"
@@ -154,7 +155,6 @@
             </a-entity>
 
         </a-entity>
-
         <a-entity map></a-entity>
     </a-scene>
 </body>
