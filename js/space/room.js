@@ -9,7 +9,7 @@ function createBasicRoom(roomSize, id, position, neighbors = null) {
 
     // --------------------------------------------------------------
         // Debug: marcadores de paredes
-        /*const roomBox1 = document.createElement('a-box'); //delante, norte
+        const roomBox1 = document.createElement('a-box'); //delante, norte
         roomBox1.setAttribute('position', '0 1 -3');
         roomBox1.setAttribute('color', 'red');
         roomBox1.setAttribute('depth', '0.2');
@@ -36,7 +36,7 @@ function createBasicRoom(roomSize, id, position, neighbors = null) {
         roomBox4.setAttribute('depth', '0.2');
         roomBox4.setAttribute('height', '0.2');
         roomBox4.setAttribute('width', '0.2');
-        room.appendChild(roomBox4);*/
+        room.appendChild(roomBox4);
     // --------------------------------------------------------------
 
     const h = 2; 

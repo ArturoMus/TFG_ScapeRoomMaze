@@ -55,7 +55,7 @@ AFRAME.registerComponent('puzzle-orb-pedestal', {
 
         // 2. Crear Orbe en la sala anterior (posicionado de forma que se vea)
         if (prevRoom) {
-            const orb = createOrb('0 1.2 0'); 
+            const orb = createOrb('0 1.6 0'); 
             orb.setAttribute('data-puzzle-id', this.data.doorId); // asociamos el orbe con la puerta que abre
             prevRoom.appendChild(orb);
         }
@@ -67,6 +67,30 @@ AFRAME.registerComponent('puzzle-orb-pedestal', {
     }
 });
 
+AFRAME.registerComponent('puzzle-pressure-plate', {
+    schema: {
+        doorId: { type: 'string' }
+    },
+
+    init: function () {
+
+        const room = this.el;
+
+        const door = document.querySelector('#' + this.data.doorId);
+        if (!door) {
+            console.warn("No se encontró la puerta:", this.data.doorId);
+            return;
+        }
+
+        door.components.door.isLocked = true;
+
+        const plate = createPressurePlate('0 0 -2', this.data.doorId);
+        room.appendChild(plate);
+
+        const box = createTestBox('1 1 -2', this.data.doorId);
+        room.appendChild(box);
+    }
+});
 //acabar esta funcion
 function checkDoorPivotExists(doorId) {}
 /*AFRAME.registerComponent('puzzle-button-door', {

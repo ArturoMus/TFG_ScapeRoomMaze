@@ -218,3 +218,41 @@ function createPedestal(position, doorSelector) {
 
     return base;
 }
+
+function createPressurePlate(position, doorSelector) {
+
+    const plate = document.createElement('a-box');
+    plate.setAttribute('position', position);
+    plate.setAttribute('width', '0.5');
+    plate.setAttribute('height', '0.2');
+    plate.setAttribute('depth', '0.5');
+    plate.setAttribute('color', 'red');
+    plate.setAttribute('static-body', '');
+    plate.setAttribute('pressure-plate', {
+        target: '#' + doorSelector
+    });
+    return plate;
+}
+
+function createTestBox(position) {
+    const box = document.createElement('a-box');
+    box.setAttribute('position', position);
+
+    box.setAttribute('width', '0.5');
+    box.setAttribute('height', '0.5');
+    box.setAttribute('depth', '0.5');
+
+    box.setAttribute('color', '#FF00FF');
+    box.setAttribute('dynamic-body', {
+        mass: 1,
+        shape: 'box',
+        linearDamping: 0.4,
+        angularDamping: 0.4
+    });
+
+    box.setAttribute('box', '');
+    box.setAttribute('class', 'interactable');
+    box.setAttribute('interactable', '');
+
+    return box;
+}

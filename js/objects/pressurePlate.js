@@ -8,9 +8,11 @@ AFRAME.registerComponent('pressure-plate', {
     init: function () {
         this.pressingBodies = new Set();
         this.isPressed = false;
+        this.initialPos = this.el.object3D.position.clone()
 
         this.el.addEventListener('collide', (e) => {
             this.pressingBodies.add(e.detail.body);
+            //aqui se puede añadir filtraje de elementos no validos
             
         });
         this.el.addEventListener('collideend', (e) => {
@@ -19,6 +21,31 @@ AFRAME.registerComponent('pressure-plate', {
     },
 
     tick: function () {
+        const platePos = new THREE.Vector3();
+        this.el.object3D.getWorldPosition(platePos);
+
+        let stillPressing = false;
+
+        this.pressingBodies.forEach(body => {
+            if (!body.el) return;
+
+            const bodyPos = new THREE.Vector3(
+                body.position.x,
+                body.position.y,
+                body.position.z
+            );
+
+            const distance = platePos.distanceTo(bodyPos);
+
+            // Ajusta este valor según tamaño de placa
+            if (distance < 0.6) {
+                stillPressing = true;
+            }
+            if (distance > 1.5) {
+                this.pressingBodies.delete(body);
+            }
+        });
+
         const pressing = this.pressingBodies.size > 0;
 
         if (pressing && !this.isPressed) {
@@ -37,9 +64,12 @@ AFRAME.registerComponent('pressure-plate', {
         // Ahora cambiar color, luego ver que hacer
         this.el.setAttribute('color', 'green');
 
+        //Reinicio animaciones        
+        this.el.removeAttribute('animation__press');
+
         this.el.setAttribute('animation__press', {
             property: 'position',
-            to: '0 -0.05 0',
+            to: `${this.initialPos.x} ${this.initialPos.y - 0.05} ${this.initialPos.z}`,
             dur: 100,
             easing: 'easeOutQuad'
         });
@@ -57,9 +87,12 @@ AFRAME.registerComponent('pressure-plate', {
         // Ahora cambiar color, luego ver que hacer
         this.el.setAttribute('color', 'red');
 
+        //Reinicio animaciones
+        this.el.removeAttribute('animation__release');
+
         this.el.setAttribute('animation__release', {
             property: 'position',
-            to: '0 0 0',
+            to: `${this.initialPos.x} ${this.initialPos.y} ${this.initialPos.z}`,
             dur: 100,
             easing: 'easeOutQuad'
         });
