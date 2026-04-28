@@ -131,24 +131,22 @@
                 <!--<a-entity id="orb-holder" position="0 -0.3 -0.8"></a-entity>
             </a-entity>
         </a-entity>-->
-        <a-entity id="player" wasd-controls="acceleration: 20" position="0 0 0">
+        <a-entity id="player"
+                movement-controls="speed: 0.1"
+                kinematic-body>
 
-            <!-- CAMARA -->
             <a-entity id="cameraRig"
                     camera
                     look-controls
                     position="0 1.6 0">
             </a-entity>
 
-            <!-- MANOS -->
-            <a-entity id="leftHand"
-                    laser-controls="hand: left"
+            <a-entity laser-controls="hand: left"
                     raycaster="objects: .interactable"
                     line="color: white">
             </a-entity>
 
-            <a-entity id="rightHand"
-                    laser-controls="hand: right"
+            <a-entity laser-controls="hand: right"
                     raycaster="objects: .interactable"
                     line="color: white">
             </a-entity>
