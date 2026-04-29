@@ -196,8 +196,9 @@ function createOrb(position) {
         angularDamping: 0.4
     })
     orb.setAttribute('orb', ''); // Añade el componente
-    orb.setAttribute('class', 'interactable');
+    orb.setAttribute('class', 'interactable grabbable');
     orb.setAttribute('interactable', '');
+    orb.setAttribute('grabbable', '');
     return orb;
 }
 
@@ -251,8 +252,9 @@ function createTestBox(position) {
     });
 
     box.setAttribute('box', '');
-    box.setAttribute('class', 'interactable');
+    box.setAttribute('class', 'interactable, grabbable');
     box.setAttribute('interactable', '');
+    box.setAttribute('grabbable', '');
 
     return box;
 }

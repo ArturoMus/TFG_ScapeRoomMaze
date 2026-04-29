@@ -13,6 +13,7 @@
 
     <script src="js/player.js"></script>
     <script src="js/interaction.js"></script>
+    <script src="js/grabber.js"></script>
     <script src="js/objects/door.js"></script>
     <script src="js/objects/button.js"></script>
     <script src="js/space/graph.js"></script>
@@ -145,12 +146,12 @@
             </a-entity>
 
             <a-entity laser-controls="hand: left"
-                    raycaster="objects: .interactable"
+                    raycaster="objects: .interactable, .grabbable"
                     line="color: white">
             </a-entity>
 
             <a-entity laser-controls="hand: right"
-                    raycaster="objects: .interactable"
+                    raycaster="objects: .interactable, .grabbable"
                     line="color: white">
             </a-entity>
 
