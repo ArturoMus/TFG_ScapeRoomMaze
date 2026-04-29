@@ -90,7 +90,7 @@ function createRoomStructure(room, roomSize, neighbors) {
     room.appendChild(ceiling);
 
     // Paredes
-    /*if (!neighbors.north) {
+    if (!neighbors.north) {
         room.appendChild(createWall('0 2 -5', '10 4 0.2'));
     }
     else {
@@ -113,7 +113,7 @@ function createRoomStructure(room, roomSize, neighbors) {
     }
     else {
         createWallWithHole(room, 'west', roomSize);
-    }*/
+    }
 }
 
 function createWall(position, size) {
