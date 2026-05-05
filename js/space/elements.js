@@ -61,6 +61,9 @@ function createDoor(room, direction, roomSize) {
     return pivot;
 }
 
+// ---------------------------------------------------------------------------------
+//                                   FUNCIONES DE LOS BOTONES
+// ---------------------------------------------------------------------------------
 function createButton(position, targetSelector, room, options ={}) {
 
     const button = document.createElement('a-box');
@@ -133,6 +136,104 @@ function createButtonWithHitbox(position, targetSelector, room) {
     wrapper.setAttribute('id', room.getAttribute('id') + '-button');
     
     return wrapper;
+}
+
+function randomRange(min, max) {
+    return min + Math.random() * (max - min);
+}
+
+function randomChoice(array) {
+    return array[Math.floor(Math.random() * array.length)];
+}
+
+function randomWallLateral(hasDoor, roomSize) {
+    const max = roomSize / 2 - 1.2;
+
+    // Si la pared tiene puerta, evito el centro para no poner el botón en el hueco.
+    if (hasDoor) {
+        const sign = Math.random() < 0.5 ? -1 : 1;
+        return sign * randomRange(1.4, max);
+    }
+
+    return randomRange(-max, max);
+}
+
+function createCamouflagedWallButton(room, targetSelector, roomSize = 10) {
+    const roomId = room.getAttribute('id');
+    const roomData = window.rooms?.[roomId];
+
+    const neighbors = roomData?.neighbors || {};
+
+    const allDirections = ['north', 'south', 'east', 'west'];
+
+    // Selecciono preferiblemente paredes sin huecos, para evitar problemas
+    const solidWalls = allDirections.filter(dir => !neighbors[dir]);
+    const possibleWalls = solidWalls.length > 0 ? solidWalls : allDirections;
+
+    const direction = randomChoice(possibleWalls);
+    const hasDoor = !!neighbors[direction];
+
+    const half = roomSize / 2;
+    const wallInnerFace = half - 0.1;
+    const buttonDepth = 0.08;
+
+    const lateral = randomWallLateral(hasDoor, roomSize);
+    const y = randomRange(1.1, 2.3);
+
+    const material = {
+        src: '#wallTex',
+        normalMap: '#wallNormal',
+        repeat: '0.45 0.45',
+        color: '#999'
+    };
+
+    let position;
+    let width;
+    let height = 0.35;
+    let depth;
+    let pressOffset;
+
+    switch (direction) {
+        case 'north':
+            position = `${lateral} ${y} ${-wallInnerFace + buttonDepth / 2}`;
+            width = 0.35;
+            depth = buttonDepth;
+            pressOffset = { x: 0, y: 0, z: -0.05 };
+            break;
+
+        case 'south':
+            position = `${lateral} ${y} ${wallInnerFace - buttonDepth / 2}`;
+            width = 0.35;
+            depth = buttonDepth;
+            pressOffset = { x: 0, y: 0, z: 0.05 };
+            break;
+
+        case 'east':
+            position = `${wallInnerFace - buttonDepth / 2} ${y} ${lateral}`;
+            width = buttonDepth;
+            depth = 0.35;
+            pressOffset = { x: 0.05, y: 0, z: 0 };
+            break;
+
+        case 'west':
+            position = `${-wallInnerFace + buttonDepth / 2} ${y} ${lateral}`;
+            width = buttonDepth;
+            depth = 0.35;
+            pressOffset = { x: -0.05, y: 0, z: 0 };
+            break;
+    }
+
+    const button = createButton(position, targetSelector, room, {
+        width,
+        height,
+        depth,
+        material,
+        pressOffset
+    });
+
+    console.log(`Botón camuflado en ${roomId}, pared ${direction}, posición ${position}`);
+
+    return button;
 }
 
 function createTorch(position) {
