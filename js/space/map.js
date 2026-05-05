@@ -1,4 +1,12 @@
 
+function getMainPathCoords() {
+    return [
+        {x:0, z:0}, {x:0, z:1}, {x:0, z:2},
+        {x:1, z:2}, {x:1, z:1}, {x:1, z:0},
+        {x:2, z:0}, {x:2, z:1}, {x:2, z:2}
+    ];
+}
+
 AFRAME.registerComponent('map', {
     init: function () {
 
@@ -11,7 +19,10 @@ AFRAME.registerComponent('map', {
 
         const roomSize = 10;
 
-        const rooms = createGraph(layout);
+        const mainPathCoords = getMainPathCoords();
+        const allowedConnections = createConnectionsFromPath(mainPathCoords);
+
+        const rooms = createGraph(layout, allowedConnections);
 
         window.rooms = rooms; // para debugear
         window.roomSize = roomSize;
@@ -67,12 +78,7 @@ function renderMap(rooms, roomSize) {
 
 function assignPuzzlesPremium(rooms) {
     // 1. Definimos el orden de las celdas según tu esquema (x, z)
-    const pathCoords = [
-        {x:0, z:0}, {x:0, z:1}, {x:0, z:2}, // Columna 0 (Baja)
-        {x:1, z:2}, {x:1, z:1}, {x:1, z:0}, // Columna 1 (Sube)
-        {x:2, z:0}, {x:2, z:1}, {x:2, z:2}  // Columna 2 (Baja)
-    ];
-
+    pathCoords = pathCoords || getMainPathCoords();
     const usedDoors = new Set();
 
     for (let i = 0; i < pathCoords.length - 1; i++) {
