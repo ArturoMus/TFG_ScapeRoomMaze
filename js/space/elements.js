@@ -80,9 +80,7 @@ function createButton(position, targetSelector, room, options ={}) {
     
     button.setAttribute('material', options.material || {
         src: '#wallTex',
-        normalMap: '#wallNormal',
         repeat: '0.5 0.5',
-        color: '#999'
     });
 
     button.setAttribute('shadow', {
@@ -182,9 +180,7 @@ function createCamouflagedWallButton(room, targetSelector, roomSize = 10) {
 
     const material = {
         src: '#wallTex',
-        normalMap: '#wallNormal',
         repeat: '0.45 0.45',
-        color: '#999'
     };
 
     let position;

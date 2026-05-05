@@ -9,6 +9,7 @@ AFRAME.registerComponent('button', {
 
     init: function () {
         this.isPressed = false;
+        this.initialPos = this.el.object3D.position.clone();
 
         this.el.setAttribute('sound', {
             src: '#buttonSound',
@@ -53,12 +54,13 @@ AFRAME.registerComponent('button', {
             easing: 'easeOutQuad'
         });
 
-        this.el.setAttribute('material', {
+        // MIRAAAAAR
+        /*this.el.setAttribute('material', {
             color: '#777',
             src: '#wallTex',
             normalMap: '#wallNormal',
             repeat: '0.5 0.5'
-        });
+        });*/
 
         // Evento
         if (this.data.target) {
