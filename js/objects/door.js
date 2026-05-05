@@ -55,7 +55,12 @@ AFRAME.registerComponent('door', {
 
     toggleDoor: function () {
         if (this.isOpen) return;
-        this.isOpen = !this.isOpen;
+
+        this.isOpen = true;
+
+        if (this.el.doorData) {
+            this.el.doorData.isOpen = true;
+        }
 
         if (this.el.colliderRef) {
             this.el.colliderRef.disabled = true;
@@ -69,7 +74,7 @@ AFRAME.registerComponent('door', {
             dur: 5000,
             easing: 'easeOutQuad'
         });
-        window.rebuildNavMesh();
+        window.rebuildNavMesh?.();
         
 
         // Calculamos la nueva rotación en el eje Y
@@ -119,6 +124,11 @@ AFRAME.registerComponent('door', {
         if (this.progress >= 1) {
             this.isFullyOpen = true;
             this.isLocked = false;
+            this.isOpen = true;
+
+            if(this.el.doorData){
+                this.el.doorData.isOpen = true;
+            }
 
             if (this.el.colliderRef) {
                 this.el.colliderRef.disabled = true;

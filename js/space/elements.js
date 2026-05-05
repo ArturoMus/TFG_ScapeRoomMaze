@@ -197,7 +197,6 @@ function createOrb(position) {
     })
     orb.setAttribute('orb', ''); // Añade el componente
     orb.setAttribute('class', 'grabbable');
-    orb.setAttribute('grabbable', '');
     return orb;
 }
 
@@ -252,7 +251,5 @@ function createTestBox(position) {
 
     box.setAttribute('box', '');
     box.setAttribute('class', 'grabbable');
-    box.setAttribute('grabbable', '');
-
     return box;
 }
