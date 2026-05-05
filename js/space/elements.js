@@ -348,7 +348,7 @@ function createPressurePlate(position, doorSelector, options={}) {
     });
 
     //plate.setAttribute('static-body', '');
-
+    
     plate.setAttribute('pressure-plate', {
         target: '#' + doorSelector,
         pressDepth: options.pressDepth ?? 0.025
@@ -362,11 +362,11 @@ function createCamouflagedPressurePlate(room, doorSelector, roomSize = 10) {
     const x = randomRange(-roomSize / 2 + margin, roomSize / 2 - margin);
     const z = randomRange(-roomSize / 2 + margin, roomSize / 2 - margin);
 
-    const plate = createPressurePlate(`${x} 0.011 ${z}`, doorSelector, {
+    const plate = createPressurePlate(`${x} 0.025 ${z}`, doorSelector, {
         width: 1.2,
-        height: 0.02,
+        height: 0.04,
         depth: 1.2,
-        pressDepth: 0.012,
+        pressDepth: 0.025,
         material: {
             src: '#floorTex',
             repeat: '0.6 0.6',

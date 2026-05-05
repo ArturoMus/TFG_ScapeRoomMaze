@@ -192,7 +192,7 @@ function rebuildGeneratedNavMesh(rooms, roomSize) {
         oldNavMesh.parentNode.removeChild(oldNavMesh);
     }
 
-    const NAVMESH_DEBUG = true;
+    const NAVMESH_DEBUG = false;
 
     // true = para probar, todas las puertas dejan pasar.
     // false = solo deja pasar por puertas abiertas.
