@@ -53,6 +53,13 @@ AFRAME.registerComponent('button', {
             easing: 'easeOutQuad'
         });
 
+        this.el.setAttribute('material', {
+            color: '#777',
+            src: '#wallTex',
+            normalMap: '#wallNormal',
+            repeat: '0.5 0.5'
+        });
+
         // Evento
         if (this.data.target) {
             this.data.target.emit(this.data.event);
