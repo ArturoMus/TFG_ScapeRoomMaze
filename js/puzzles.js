@@ -84,10 +84,10 @@ AFRAME.registerComponent('puzzle-pressure-plate', {
 
         door.components.door.isLocked = true;
 
-        const plate = createPressurePlate('0 0 -2', this.data.doorId);
-        room.appendChild(plate);
+        const plateSetup = createCamouflagedPressurePlate(room, this.data.doorId, window.roomSize || 10);
+        room.appendChild(plateSetup.plate);
 
-        const box = createTestBox('1 1 -2', this.data.doorId);
+        const box = createTestBox(plateSetup.boxPosition);
         room.appendChild(box);
     }
 });

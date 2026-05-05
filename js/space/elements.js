@@ -231,6 +231,7 @@ function createCamouflagedWallButton(room, targetSelector, roomSize = 10) {
 
     return button;
 }
+// -----------------------------------------------------------------------------------------------
 
 function createTorch(position) {
 
@@ -328,20 +329,66 @@ function createPedestal(position, doorSelector) {
     return base;
 }
 
-function createPressurePlate(position, doorSelector) {
+function createPressurePlate(position, doorSelector, options={}) {
 
     const plate = document.createElement('a-box');
     plate.setAttribute('position', position);
-    plate.setAttribute('width', '0.5');
-    plate.setAttribute('height', '0.2');
-    plate.setAttribute('depth', '0.5');
-    plate.setAttribute('color', 'red');
+    plate.setAttribute('width', options.width ?? 1.2);
+    plate.setAttribute('height', options.height ?? 0.04);
+    plate.setAttribute('depth', options.depth ?? 1.2);
+    
+    plate.setAttribute('material', options.material || {
+        src: '#floorTex',
+        repeat: '0.6 0.6',
+    });
+
+    plate.setAttribute('shadow', {
+        cast: true,
+        receive: true
+    });
+
     plate.setAttribute('static-body', '');
     plate.setAttribute('pressure-plate', {
-        target: '#' + doorSelector
+        target: '#' + doorSelector,
+        pressDepth: options.pressDepth ?? 0.025
     });
     return plate;
 }
+
+function createCamouflagedPressurePlate(room, doorSelector, roomSize = 10) {
+    const margin = 1.8;
+
+    const x = randomRange(-roomSize / 2 + margin, roomSize / 2 - margin);
+    const z = randomRange(-roomSize / 2 + margin, roomSize / 2 - margin);
+
+    const plate = createPressurePlate(`${x} 0.025 ${z}`, doorSelector, {
+        width: 1.2,
+        height: 0.04,
+        depth: 1.2,
+        pressDepth: 0.025,
+        material: {
+            src: '#floorTex',
+            repeat: '0.6 0.6',
+        }
+    });
+
+    const boxX = Math.max(
+        -roomSize / 2 + margin,
+        Math.min(roomSize / 2 - margin, x + 1.3)
+    );
+
+    const boxZ = z;
+
+    console.log(
+        `Placa camuflada en ${room.getAttribute('id')}, posición ${x.toFixed(2)} ${z.toFixed(2)}`
+    );
+
+    return {
+        plate,
+        boxPosition: `${boxX} 1 ${boxZ}`
+    };
+}
+
 
 function createTestBox(position) {
     const box = document.createElement('a-box');

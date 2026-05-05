@@ -62,7 +62,7 @@ AFRAME.registerComponent('pressure-plate', {
         console.log("Placa de presión activada");
 
         // Ahora cambiar color, luego ver que hacer
-        this.el.setAttribute('color', 'green');
+        //this.el.setAttribute('color', 'green');
 
         //Reinicio animaciones        
         this.el.removeAttribute('animation__press');
@@ -85,7 +85,7 @@ AFRAME.registerComponent('pressure-plate', {
         console.log("Placa de presión desactivada");
 
         // Ahora cambiar color, luego ver que hacer
-        this.el.setAttribute('color', 'red');
+        //this.el.setAttribute('color', 'red');
 
         //Reinicio animaciones
         this.el.removeAttribute('animation__release');
