@@ -452,7 +452,7 @@ function createCamouflagedPressurePlate(room, doorSelector, roomSize = 10) {
     });
 
     console.log(
-        `Placa camuflada en ${room.getAttribute('id')}, posición ${x.toFixed(2)} ${z.toFixed(2)}`
+        `Placa camuflada en ${room.getAttribute('id')}, posición ${platePos.x.toFixed(2)} ${platePos.z.toFixed(2)}`
     );
 
     console.log(
@@ -461,7 +461,7 @@ function createCamouflagedPressurePlate(room, doorSelector, roomSize = 10) {
 
     return {
         plate,
-        boxPosition: `${boxX} 1 ${boxZ}`
+        boxPosition: `${boxPos.x} 0.7 ${boxPos.z}`
     };
 }
 // ---------------------------------------------------------------------------------
