@@ -76,7 +76,7 @@ function renderMap(rooms, roomSize) {
     });
 }
 
-function assignPuzzlesPremium(rooms) {
+function assignPuzzlesPremium(rooms, pathCoords = null) {
     // 1. Definimos el orden de las celdas según tu esquema (x, z)
     pathCoords = pathCoords || getMainPathCoords();
     const usedDoors = new Set();
