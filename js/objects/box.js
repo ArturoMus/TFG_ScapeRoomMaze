@@ -51,7 +51,7 @@ AFRAME.registerComponent('box', {
         console.log("Caja agarrada");
     },
 
-    release: function () {
+    release: function (options ={}) {
         this.isCarried = false;
 
         if (this.el.body) {
