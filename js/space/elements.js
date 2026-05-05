@@ -61,25 +61,38 @@ function createDoor(room, direction, roomSize) {
     return pivot;
 }
 
-function createButton(position, targetSelector, room) {
+function createButton(position, targetSelector, room, options ={}) {
 
     const button = document.createElement('a-box');
     button.setAttribute('id', room.getAttribute('id') + '-button');
 
     button.setAttribute('position', position);
-    button.setAttribute('depth', '0.2');
-    button.setAttribute('height', '0.3');
-    button.setAttribute('width', '0.3');
-    button.setAttribute('color', 'red');
+    button.setAttribute('width', options.width ?? 0.35);
+    button.setAttribute('height', options.height ?? 0.35);
+    button.setAttribute('depth', options.depth ?? 0.08);
+
+    button.setAttribute('interactable', '');
+
     button.setAttribute('static-body', '');
     
+    button.setAttribute('material', options.material || {
+        src: '#wallTex',
+        normalMap: '#wallNormal',
+        repeat: '0.5 0.5',
+        color: '#999'
+    });
+
+    button.setAttribute('shadow', {
+        cast: true,
+        receive: true
+    });
+
     // Configuramos el botón para que dispare el evento a la puerta que encontramos
     button.setAttribute('button', {
         event: 'openDoor',
-        target: '#' + targetSelector
+        target: '#' + targetSelector,
+        pressOffset: options.pressOffset || { x: 0, y: 0, z: -0.05 }
     });
-
-    button.setAttribute('interactable', '');
     
     return button;
 }

@@ -22,8 +22,8 @@ AFRAME.registerComponent('puzzle-button-door', {
         
         existingDoorPivot.components.door.isLocked = true;
 
-        // CONVERTIR A METODO EN ELEMENTS.JS!!!!!!!!!!
-        const button = createButton('1 1 -3', this.data.doorId, room);
+        const button = createCamouflagedWallButton(room, this.data.doorId, window.roomSize || 10);
+
         room.appendChild(button);
         
     }
