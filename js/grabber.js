@@ -8,13 +8,27 @@ AFRAME.registerComponent('vr-grabber', {
     init: function () {
         this.heldEl = null;
 
-        //Grip
-        this.el.addEventListener('gripdown', () => this.tryGrab());
-        this.el.addEventListener('gripup', () => this.release());
+        //Gatillo
+        this.el.addEventListener('triggerdown', () => {
+            console.log('triggerdown en', this.el.id);
+            this.tryGrab();
+        });
 
-        // Gatillo
-        this.el.addEventListener('triggerdown', () => this.tryGrab());
-        this.el.addEventListener('triggerup', () => this.release());
+        this.el.addEventListener('triggerup', () => {
+            console.log('triggerup en', this.el.id);
+            this.release(true);
+        });
+
+        //Grip
+        this.el.addEventListener('gripdown', () => {
+            console.log('gripdown en', this.el.id);
+            this.tryGrab();
+        });
+
+        this.el.addEventListener('gripup', () => {
+            console.log('gripup en', this.el.id);
+            this.release(true);
+        });
     },
 
     tryGrab: function () {
