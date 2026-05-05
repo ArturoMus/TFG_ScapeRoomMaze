@@ -145,7 +145,7 @@ AFRAME.registerComponent('pressure-plate', {
 
         this.el.setAttribute('animation__press', {
             property: 'position',
-            to: `${this.initialPos.x} ${this.initialPos.y - 0.05} ${this.initialPos.z}`,
+            to: `${this.initialPos.x} ${this.initialPos.y - this.data.pressDepth} ${this.initialPos.z}`,
             dur: 100,
             easing: 'easeOutQuad'
         });

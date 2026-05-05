@@ -1,5 +1,78 @@
 
 
+// ---------------------------------------------------------------------------------
+//                                   FUNCIONES DE GENERACIONES ALEATORIAS
+// ---------------------------------------------------------------------------------
+
+// Estas funciones las uso para crear los elementos en posiciones aleatorias relativas de las salas
+
+function randomRange(min, max) {
+    return min + Math.random() * (max - min);
+}
+
+function randomChoice(array) {
+    return array[Math.floor(Math.random() * array.length)];
+}
+
+function randomWallLateral(hasDoor, roomSize) {
+    const max = roomSize / 2 - 1.2;
+
+    // Si la pared tiene puerta, evito el centro para no poner el botón en el hueco.
+    if (hasDoor) {
+        const sign = Math.random() < 0.5 ? -1 : 1;
+        return sign * randomRange(1.4, max);
+    }
+
+    return randomRange(-max, max);
+}
+
+function randomFloorPoint(roomSize, margin = 1.8) {
+    return {
+        x: randomRange(-roomSize / 2 + margin, roomSize / 2 - margin),
+        z: randomRange(-roomSize / 2 + margin, roomSize / 2 - margin)
+    };
+}
+
+function distanceXZ(a, b) {
+    const dx = a.x - b.x;
+    const dz = a.z - b.z;
+    return Math.sqrt(dx * dx + dz * dz);
+}
+
+function getObjectSpawnAwayFromPoint(origin, roomSize, options = {}) {
+    const margin = options.margin ?? 1.8;
+    const minDistance = options.minDistance ?? 2.2;
+
+    // Intento varias posiciones aleatorias.
+    for (let i = 0; i < 40; i++) {
+        const candidate = randomFloorPoint(roomSize, margin);
+
+        if (distanceXZ(candidate, origin) >= minDistance) {
+            return candidate;
+        }
+    }
+
+    // Fallback: elegir la esquina más lejana dentro de la sala.
+    const limit = roomSize / 2 - margin;
+
+    const corners = [
+        { x: -limit, z: -limit },
+        { x:  limit, z: -limit },
+        { x: -limit, z:  limit },
+        { x:  limit, z:  limit }
+    ];
+
+    corners.sort((a, b) => distanceXZ(b, origin) - distanceXZ(a, origin));
+
+    return corners[0];
+}
+
+// ---------------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------------
+//                                   FUNCIONES DE LAS PUERTAS
+// ---------------------------------------------------------------------------------
+
 function createDoor(room, direction, roomSize) {
 
     var size = roomSize / 2;
@@ -60,6 +133,8 @@ function createDoor(room, direction, roomSize) {
 
     return pivot;
 }
+// ---------------------------------------------------------------------------------
+
 
 // ---------------------------------------------------------------------------------
 //                                   FUNCIONES DE LOS BOTONES
@@ -134,26 +209,6 @@ function createButtonWithHitbox(position, targetSelector, room) {
     wrapper.setAttribute('id', room.getAttribute('id') + '-button');
     
     return wrapper;
-}
-
-function randomRange(min, max) {
-    return min + Math.random() * (max - min);
-}
-
-function randomChoice(array) {
-    return array[Math.floor(Math.random() * array.length)];
-}
-
-function randomWallLateral(hasDoor, roomSize) {
-    const max = roomSize / 2 - 1.2;
-
-    // Si la pared tiene puerta, evito el centro para no poner el botón en el hueco.
-    if (hasDoor) {
-        const sign = Math.random() < 0.5 ? -1 : 1;
-        return sign * randomRange(1.4, max);
-    }
-
-    return randomRange(-max, max);
 }
 
 function createCamouflagedWallButton(room, targetSelector, roomSize = 10) {
@@ -231,8 +286,12 @@ function createCamouflagedWallButton(room, targetSelector, roomSize = 10) {
 
     return button;
 }
-// -----------------------------------------------------------------------------------------------
+// ---------------------------------------------------------------------------------
 
+
+// ---------------------------------------------------------------------------------
+//                                   FUNCIONES DE LAS ANTORCHAS
+// ---------------------------------------------------------------------------------
 function createTorch(position) {
 
     const torch = document.createElement('a-entity');
@@ -294,6 +353,10 @@ function createTorch(position) {
     return torch;
 }
 
+// ---------------------------------------------------------------------------------
+//                                   FUNCIONES DE LOS ORBES
+// ---------------------------------------------------------------------------------
+
 function createOrb(position) {
     const orb = document.createElement('a-sphere');
     orb.setAttribute('position', position);
@@ -310,6 +373,12 @@ function createOrb(position) {
     orb.setAttribute('class', 'grabbable');
     return orb;
 }
+// ---------------------------------------------------------------------------------
+
+
+// ---------------------------------------------------------------------------------
+//                                   FUNCIONES DE LOS PEDESTALES
+// ---------------------------------------------------------------------------------
 
 function createPedestal(position, doorSelector) {
 
@@ -328,7 +397,12 @@ function createPedestal(position, doorSelector) {
 
     return base;
 }
+// ---------------------------------------------------------------------------------
 
+
+// ---------------------------------------------------------------------------------
+//                                   FUNCIONES DE LAS PLACAS DE PRESIÓN
+// ---------------------------------------------------------------------------------
 function createPressurePlate(position, doorSelector, options={}) {
 
     const plate = document.createElement('a-box');
@@ -359,10 +433,9 @@ function createPressurePlate(position, doorSelector, options={}) {
 function createCamouflagedPressurePlate(room, doorSelector, roomSize = 10) {
     const margin = 1.8;
 
-    const x = randomRange(-roomSize / 2 + margin, roomSize / 2 - margin);
-    const z = randomRange(-roomSize / 2 + margin, roomSize / 2 - margin);
+    const platePos = randomFloorPoint(roomSize, margin);
 
-    const plate = createPressurePlate(`${x} 0.025 ${z}`, doorSelector, {
+    const plate = createPressurePlate(`${platePos.x} 0.025 ${platePos.z}`, doorSelector, {
         width: 1.2,
         height: 0.04,
         depth: 1.2,
@@ -373,15 +446,17 @@ function createCamouflagedPressurePlate(room, doorSelector, roomSize = 10) {
         }
     });
 
-    const boxX = Math.max(
-        -roomSize / 2 + margin,
-        Math.min(roomSize / 2 - margin, x + 1.3)
-    );
-
-    const boxZ = z;
+    const boxPos = getObjectSpawnAwayFromPoint(platePos, roomSize, {
+        margin: 1.8,
+        minDistance: 2.4
+    });
 
     console.log(
         `Placa camuflada en ${room.getAttribute('id')}, posición ${x.toFixed(2)} ${z.toFixed(2)}`
+    );
+
+    console.log(
+        `Spawn de la caja en posición ${boxPos.x.toFixed(2)} ${boxPos.z.toFixed(2)}`
     );
 
     return {
@@ -389,7 +464,7 @@ function createCamouflagedPressurePlate(room, doorSelector, roomSize = 10) {
         boxPosition: `${boxX} 1 ${boxZ}`
     };
 }
-
+// ---------------------------------------------------------------------------------
 
 function createTestBox(position) {
     const box = document.createElement('a-box');
@@ -400,6 +475,10 @@ function createTestBox(position) {
     box.setAttribute('depth', '0.5');
 
     box.setAttribute('color', '#FF00FF');
+
+    box.setAttribute('box', '');
+    box.setAttribute('class', 'grabbable');
+
     box.setAttribute('dynamic-body', {
         mass: 1,
         shape: 'box',
@@ -407,7 +486,7 @@ function createTestBox(position) {
         angularDamping: 0.4
     });
 
-    box.setAttribute('box', '');
-    box.setAttribute('class', 'grabbable');
     return box;
 }
+
+

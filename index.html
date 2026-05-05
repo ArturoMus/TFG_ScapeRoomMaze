@@ -23,6 +23,7 @@
     <script src="js/puzzles.js"></script>
     <script src="js/collision.js"></script>
     <script src="js/game.js"></script>
+    <script src="js/menu.js"></script>
     <script src="js/objects/orb.js"></script>
     <script src="js/objects/pedestal.js"></script>
     <script src="js/objects/pressurePlate.js"></script>
@@ -49,7 +50,7 @@
     ">
         <h1 id="overlay-title">(Pensar nombre juego)</h1>
         <button id="start-button">Empezar</button>
-    </div>
+    </div>  
 
     <a-scene shadow="type: pcfsoft" light="defaultLightsEnabled: false" physics="debug: true; gravity: -9.8">
 
@@ -85,6 +86,16 @@
         <a-sky color="#111"></a-sky>
         <!-- Poner color al 333 e intensidad al 0.6 para hacerlo más oscurito-->
         <a-entity light="type: ambient; color: #999; intensity: 0.6"></a-entity>
+
+        <a-entity id="main-menu"
+                main-menu
+                position="0 1.6 -2.6">
+        </a-entity>
+
+        <a-entity id="loading-screen"
+                vr-loading-screen
+                position="0 1.6 -2.6">
+        </a-entity>
 
             <!-- Jugador -->
             <!--
@@ -135,7 +146,7 @@
             </a-entity>
         </a-entity>-->
         <a-entity id="player"
-                movement-controls="controls: gamepad, keyboard; speed: 0.2; fly: false; constrainToNavMesh: true"
+                movement-controls="controls: gamepad, keyboard; speed: 0; fly: false; constrainToNavMesh: true"
                 gamepad-controls="rotationSensitivity: 0"
                 position="0 0 0">
 
@@ -160,7 +171,7 @@
             </a-entity>
 
         </a-entity>
-        <a-entity map></a-entity>
+        <a-entity id="map-root"></a-entity>
     </a-scene>
 </body>
 </html>
