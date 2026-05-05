@@ -252,7 +252,7 @@ function createTestBox(position) {
     });
 
     box.setAttribute('box', '');
-    box.setAttribute('class', 'interactable, grabbable');
+    box.setAttribute('class', 'interactable grabbable');
     box.setAttribute('interactable', '');
     box.setAttribute('grabbable', '');
 

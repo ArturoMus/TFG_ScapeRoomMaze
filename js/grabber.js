@@ -47,11 +47,23 @@ AFRAME.registerComponent('vr-grabber', {
     release: function () {
         if (!this.heldEl) return;
 
+        const releaseVelocity = this.handVelocity.clone();
+
+        if (releaseVelocity.length() > 8) {
+            releaseVelocity.setLength(8);
+        }
+
+        releaseVelocity.multiplyScalar(this.data.throwMultiplier);
+
         if (this.heldEl.components.orb) {
-            this.heldEl.components.orb.release();
+            this.heldEl.components.orb.release({
+                velocity: throwObject ? releaseVelocity : null
+            });
         }
         else if (this.heldEl.components.box) {
-            this.heldEl.components.box.release();
+            this.heldEl.components.box.release({
+                velocity: throwObject ? releaseVelocity : null
+            });
         }
 
         this.heldEl = null;

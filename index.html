@@ -145,14 +145,18 @@
                     position="0 1.6 0">
             </a-entity>
 
-            <a-entity laser-controls="hand: left"
+            <a-entity id="leftHand"
+                    laser-controls="hand: left"
                     raycaster="objects: .interactable, .grabbable"
-                    line="color: white">
+                    line="color: white"
+                    vr-grabber>
             </a-entity>
 
-            <a-entity laser-controls="hand: right"
+            <a-entity id="rightHand"
+                    laser-controls="hand: right"
                     raycaster="objects: .interactable, .grabbable"
-                    line="color: white">
+                    line="color: white"
+                    vr-grabber>
             </a-entity>
 
         </a-entity>

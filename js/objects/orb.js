@@ -64,7 +64,7 @@ AFRAME.registerComponent('orb', {
         console.log("Orbe agarrado");
     },
 
-    release: function () {
+    release: function (options = {}) {
 
 
         this.isCarried = false;
@@ -86,7 +86,15 @@ AFRAME.registerComponent('orb', {
             this.el.body.type = CANNON.Body.DYNAMIC;
             this.el.body.wakeUp();
 
-            this.el.body.velocity.y = -0.1;
+            if (options.velocity) {
+                this.el.body.velocity.set(
+                    options.velocity.x,
+                    options.velocity.y,
+                    options.velocity.z
+                );
+            } else {
+                this.el.body.velocity.set(0, -0.1, 0);
+            }
 
             /*const camera = document.querySelector('[camera]');
             const dir = new THREE.Vector3();
