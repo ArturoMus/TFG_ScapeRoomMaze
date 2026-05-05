@@ -190,7 +190,7 @@ function rebuildGeneratedNavMesh(rooms, roomSize) {
 
     // true = para probar, todas las puertas dejan pasar.
     // false = solo deja pasar por puertas abiertas.
-    const ALLOW_CLOSED_DOORS = true;
+    const ALLOW_CLOSED_DOORS = false;
 
     const playerMargin = 0.45;
     const doorWidth = 1.25;
