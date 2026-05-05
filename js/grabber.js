@@ -1,14 +1,19 @@
 AFRAME.registerComponent('vr-grabber', {
     schema: {
         objects: { type: 'string', default: '.grabbable' },
-        hand: { type: 'string', default: 'right' },
-        maxDistance: { type: 'number', default: 3 }
+        throwMultiplier: { type: 'number', default: 1.8 },
+        maxThrowSpeed: { type: 'number', default: 8 }
     },
 
     init: function () {
         this.heldEl = null;
 
-        //Gatillo
+        this.lastHandPos = new THREE.Vector3();
+        this.currentHandPos = new THREE.Vector3();
+        this.handVelocity = new THREE.Vector3();
+
+        this.el.object3D.getWorldPosition(this.lastHandPos);
+
         this.el.addEventListener('triggerdown', () => {
             console.log('triggerdown en', this.el.id);
             this.tryGrab();
@@ -19,7 +24,6 @@ AFRAME.registerComponent('vr-grabber', {
             this.release(true);
         });
 
-        //Grip
         this.el.addEventListener('gripdown', () => {
             console.log('gripdown en', this.el.id);
             this.tryGrab();
@@ -29,6 +33,40 @@ AFRAME.registerComponent('vr-grabber', {
             console.log('gripup en', this.el.id);
             this.release(true);
         });
+
+        // Eventos WebXR alternativos, por si Quest/visor emite estos
+        this.el.addEventListener('selectstart', () => {
+            console.log('selectstart en', this.el.id);
+            this.tryGrab();
+        });
+
+        this.el.addEventListener('selectend', () => {
+            console.log('selectend en', this.el.id);
+            this.release(true);
+        });
+
+        this.el.addEventListener('squeezestart', () => {
+            console.log('squeezestart en', this.el.id);
+            this.tryGrab();
+        });
+
+        this.el.addEventListener('squeezeend', () => {
+            console.log('squeezeend en', this.el.id);
+            this.release(true);
+        });
+    },
+
+    tick: function (time, delta) {
+        this.el.object3D.getWorldPosition(this.currentHandPos);
+
+        if (delta && delta > 0) {
+            this.handVelocity
+                .copy(this.currentHandPos)
+                .sub(this.lastHandPos)
+                .multiplyScalar(1000 / delta);
+        }
+
+        this.lastHandPos.copy(this.currentHandPos);
     },
 
     tryGrab: function () {
@@ -58,26 +96,28 @@ AFRAME.registerComponent('vr-grabber', {
         }
     },
 
-    release: function () {
+    release: function (throwObject = true) {
         if (!this.heldEl) return;
 
-        const releaseVelocity = this.handVelocity.clone();
+        const releaseVelocity = this.handVelocity
+            ? this.handVelocity.clone()
+            : new THREE.Vector3();
 
-        if (releaseVelocity.length() > 8) {
-            releaseVelocity.setLength(8);
+        if (releaseVelocity.length() > this.data.maxThrowSpeed) {
+            releaseVelocity.setLength(this.data.maxThrowSpeed);
         }
 
         releaseVelocity.multiplyScalar(this.data.throwMultiplier);
 
+        const options = {
+            velocity: throwObject ? releaseVelocity : null
+        };
+
         if (this.heldEl.components.orb) {
-            this.heldEl.components.orb.release({
-                velocity: throwObject ? releaseVelocity : null
-            });
+            this.heldEl.components.orb.release(options);
         }
         else if (this.heldEl.components.box) {
-            this.heldEl.components.box.release({
-                velocity: throwObject ? releaseVelocity : null
-            });
+            this.heldEl.components.box.release(options);
         }
 
         this.heldEl = null;
