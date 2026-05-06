@@ -218,6 +218,7 @@ AFRAME.registerComponent('puzzle-memory-match', {
     fail: function () {
         console.log('[Memory] Patrón incorrecto. Reiniciando.');
 
+        this.generateSequence();
         this.input = [];
         this.isShowing = true;
 
