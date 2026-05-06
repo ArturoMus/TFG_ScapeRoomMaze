@@ -1,42 +1,271 @@
+const MAP_GENERATION_CONFIG = {
+    width: 5,
+    height: 5,
+    roomCount: 14,
+    extraConnectionChance: 0.18,
+    minMainPathRooms: 7,
+    maxAttempts: 40
+};
 
-function getMainPathCoords() {
-    return [
-        {x:0, z:0}, {x:0, z:1}, {x:0, z:2},
-        {x:1, z:2}, {x:1, z:1}, {x:1, z:0},
-        {x:2, z:0}, {x:2, z:1}, {x:2, z:2}
-    ];
+const CARDINAL_DIRECTIONS = [
+    { name: 'north', dx: 0, dz: -1 },
+    { name: 'south', dx: 0, dz: 1 },
+    { name: 'east',  dx: 1, dz: 0 },
+    { name: 'west',  dx: -1, dz: 0 }
+];
+
+function coordKey(coord) {
+    return `${coord.x}-${coord.z}`;
+}
+
+function roomIdFromCoord(coord) {
+    return `room-${coord.x}-${coord.z}`;
+}
+
+function coordFromRoomId(roomId) {
+    const parts = roomId.replace('room-', '').split('-').map(Number);
+    return { x: parts[0], z: parts[1] };
+}
+
+function pickRandom(array) {
+    return array[Math.floor(Math.random() * array.length)];
+}
+
+function shuffle(array) {
+    const copy = [...array];
+
+    for (let i = copy.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [copy[i], copy[j]] = [copy[j], copy[i]];
+    }
+
+    return copy;
+}
+
+function isInsideMap(x, z, width, height) {
+    return x >= 0 && x < width && z >= 0 && z < height;
+}
+
+function getAdjacentCoords(coord, width, height) {
+    return CARDINAL_DIRECTIONS
+        .map(dir => ({ x: coord.x + dir.dx, z: coord.z + dir.dz }))
+        .filter(next => isInsideMap(next.x, next.z, width, height));
+}
+
+function createConnectedRoomSet(width, height, roomCount) {
+    const maxRooms = width * height;
+    roomCount = Math.max(2, Math.min(roomCount, maxRooms));
+
+    const selected = new Map();
+    const start = { x: 0, z: 0 };
+    selected.set(coordKey(start), start);
+
+    while (selected.size < roomCount) {
+        const frontier = [];
+        const frontierKeys = new Set();
+
+        selected.forEach(room => {
+            getAdjacentCoords(room, width, height).forEach(next => {
+                const key = coordKey(next);
+
+                if (!selected.has(key) && !frontierKeys.has(key)) {
+                    frontier.push(next);
+                    frontierKeys.add(key);
+                }
+            });
+        });
+
+        if (frontier.length === 0) break;
+
+        const nextRoom = pickRandom(frontier);
+        selected.set(coordKey(nextRoom), nextRoom);
+    }
+
+    return selected;
+}
+
+function createLayoutFromRoomSet(roomSet, width, height) {
+    const layout = Array.from({ length: height }, () => Array(width).fill(0));
+
+    roomSet.forEach(room => {
+        layout[room.z][room.x] = 1;
+    });
+
+    return layout;
+}
+
+function createRandomSpanningTree(roomSet, width, height) {
+    const selectedKeys = new Set(roomSet.keys());
+    const start = roomSet.get('0-0');
+
+    const visited = new Set([coordKey(start)]);
+    const stack = [start];
+    const treeConnections = new Set();
+
+    const parentById = {
+        [roomIdFromCoord(start)]: null
+    };
+
+    const depthById = {
+        [roomIdFromCoord(start)]: 0
+    };
+
+    const discoveryOrder = [roomIdFromCoord(start)];
+
+    while (stack.length > 0) {
+        const current = stack[stack.length - 1];
+        const currentId = roomIdFromCoord(current);
+
+        const candidates = shuffle(getAdjacentCoords(current, width, height))
+            .filter(next => selectedKeys.has(coordKey(next)) && !visited.has(coordKey(next)));
+
+        if (candidates.length === 0) {
+            stack.pop();
+            continue;
+        }
+
+        const next = candidates[0];
+        const nextKey = coordKey(next);
+        const nextId = roomIdFromCoord(next);
+
+        visited.add(nextKey);
+        stack.push(next);
+
+        treeConnections.add(edgeKeyFromCoords(current, next));
+
+        parentById[nextId] = currentId;
+        depthById[nextId] = depthById[currentId] + 1;
+        discoveryOrder.push(nextId);
+    }
+
+    return {
+        treeConnections,
+        parentById,
+        depthById,
+        discoveryOrder
+    };
+}
+
+function addExtraConnections(roomSet, width, height, baseConnections, extraConnectionChance) {
+    const selectedKeys = new Set(roomSet.keys());
+    const allowedConnections = new Set(baseConnections);
+
+    roomSet.forEach(room => {
+        [
+            { x: room.x + 1, z: room.z },
+            { x: room.x, z: room.z + 1 }
+        ].forEach(next => {
+            if (!isInsideMap(next.x, next.z, width, height)) return;
+            if (!selectedKeys.has(coordKey(next))) return;
+
+            const edgeKey = edgeKeyFromCoords(room, next);
+            if (allowedConnections.has(edgeKey)) return;
+
+            if (Math.random() < extraConnectionChance) {
+                allowedConnections.add(edgeKey);
+            }
+        });
+    });
+
+    return allowedConnections;
+}
+
+function getFarthestRoomId(depthById) {
+    let farthestId = null;
+    let farthestDepth = -1;
+
+    Object.entries(depthById).forEach(([roomId, depth]) => {
+        if (depth > farthestDepth) {
+            farthestId = roomId;
+            farthestDepth = depth;
+        }
+    });
+
+    return farthestId;
+}
+
+function buildPathCoordsToStart(goalRoomId, parentById) {
+    const path = [];
+    let currentId = goalRoomId;
+
+    while (currentId) {
+        path.push(coordFromRoomId(currentId));
+        currentId = parentById[currentId];
+    }
+
+    return path.reverse();
+}
+
+function generateRandomDungeon(options = {}) {
+    const config = {
+        ...MAP_GENERATION_CONFIG,
+        ...options
+    };
+
+    let bestDungeon = null;
+
+    for (let attempt = 0; attempt < config.maxAttempts; attempt++) {
+        const roomSet = createConnectedRoomSet(
+            config.width,
+            config.height,
+            config.roomCount
+        );
+
+        const tree = createRandomSpanningTree(roomSet, config.width, config.height);
+        const goalRoomId = getFarthestRoomId(tree.depthById);
+        const mainPathCoords = buildPathCoordsToStart(goalRoomId, tree.parentById);
+
+        const allowedConnections = addExtraConnections(
+            roomSet,
+            config.width,
+            config.height,
+            tree.treeConnections,
+            config.extraConnectionChance
+        );
+
+        const dungeon = {
+            layout: createLayoutFromRoomSet(roomSet, config.width, config.height),
+            allowedConnections,
+            treeConnections: tree.treeConnections,
+            parentById: tree.parentById,
+            depthById: tree.depthById,
+            discoveryOrder: tree.discoveryOrder,
+            mainPathCoords,
+            goalRoomId
+        };
+
+        if (!bestDungeon || mainPathCoords.length > bestDungeon.mainPathCoords.length) {
+            bestDungeon = dungeon;
+        }
+
+        if (mainPathCoords.length >= config.minMainPathRooms) {
+            return dungeon;
+        }
+    }
+
+    return bestDungeon;
 }
 
 AFRAME.registerComponent('map', {
     init: function () {
-
-        // Sustituir por generación de mapa
-        const layout = [
-            [1,1,1],
-            [1,1,1],
-            [1,1,1]
-        ];
-
         const roomSize = 10;
 
-        const mainPathCoords = getMainPathCoords();
-        const allowedConnections = createConnectionsFromPath(mainPathCoords);
+        const dungeon = generateRandomDungeon();
+        const rooms = createGraph(dungeon.layout, dungeon.allowedConnections);
 
-        const rooms = createGraph(layout, allowedConnections);
-
-        window.rooms = rooms; // para debugear
+        window.rooms = rooms;
         window.roomSize = roomSize;
+        window.dungeon = dungeon;
 
         renderMap(rooms, roomSize);
 
-        // Creamos la navmesh después de crear las salas y puertas
-        rebuildGeneratedNavMesh(rooms, roomSize);
+        assignPuzzlesRandom(rooms, dungeon, roomSize);
+        createEndRoomTrigger(rooms, dungeon.mainPathCoords, roomSize);
 
-        // Guardamos función global para reconstruirla al abrir puertas
+        rebuildGeneratedNavMesh(rooms, roomSize);
         window.rebuildNavMesh = () => rebuildGeneratedNavMesh(rooms, roomSize);
-        
-        assignPuzzlesPremium(rooms);
-        createEndRoomTrigger(rooms, mainPathCoords, roomSize);
+
+        console.log('Dungeon generada:', dungeon);
     }
 });
 
@@ -48,109 +277,227 @@ function renderMap(rooms, roomSize) {
             roomSize,
             room.id,
             `${room.x * roomSize} 0 ${room.z * roomSize}`,
-            room.neighbors,
+            room.neighbors
         );
+
         scene.appendChild(entity);
-        // guardar referencia visual
         room.el = entity;
     });
 
-    // render puertas
     Object.values(rooms).forEach(room => {
         for (let dir in room.doors) {
             const door = room.doors[dir];
 
-            // Solo renderizamos si no se ha renderizado desde el otro lado
-            if (!door.rendered) {
-                // Llamamos a createDoor y capturamos el pivot que devuelve
-                const doorPivot = createDoor(room.el, door.direction, roomSize);
-                
-                // se guarda la referencia
-                door.el = doorPivot; 
-                door.el.doorData = door;
-                door.rendered = true;
+            if (door.rendered) continue;
 
-                // Opcional: ponerle un ID único para debug
-                doorPivot.setAttribute('id', `door-pivot-${room.id}-${dir}`);
-            }
+            const doorPivot = createDoor(room.el, door.direction, roomSize);
+            doorPivot.setAttribute('id', `door-pivot-${room.id}-${dir}`);
+
+            door.el = doorPivot;
+            door.el.doorData = door;
+            door.rendered = true;
         }
     });
 }
 
-function assignPuzzlesPremium(rooms, pathCoords = null) {
-    // 1. Definimos el orden de las celdas según tu esquema (x, z)
-    pathCoords = pathCoords || getMainPathCoords();
-    const usedDoors = new Set();
-
-    for (let i = 0; i < pathCoords.length - 1; i++) {
-        const currentRoom = rooms[`room-${pathCoords[i].x}-${pathCoords[i].z}`];
-        const nextRoom = rooms[`room-${pathCoords[i+1].x}-${pathCoords[i+1].z}`];
-
-        if (!currentRoom || !nextRoom) continue;
-
-        const directionToNext = Object.keys(currentRoom.neighbors).find(
-            dir => currentRoom.neighbors[dir] === nextRoom
-        );
-
-        if (!directionToNext) continue;
-
-        const door = currentRoom.doors[directionToNext];
-
-        // Si la puerta ya tiene puzzle (porque la procesamos desde la otra sala), saltar
-        if (usedDoors.has(door)) continue;
-
-        // Registrar y marcar
-        usedDoors.add(door);
-        door.hasPuzzle = true;
-        currentRoom.puzzleDoor = door; // Mantenemos la referencia por si acaso
-
-        const type = i % 4
-
-        if (type === 0) {
-            // PUZZLE DE BOTÓN
-            currentRoom.el.setAttribute('puzzle-button-door', {
-                doorId: door.el.id,
-            });
-            console.log(`[Botón] Sala ${currentRoom.id} abre ${door.el.id}`);
-        } 
-        else if (type === 1) {
-            // PUZZLE DE ORBE + PEDESTAL
-            // El orbe se spawnea en la sala anterior (pathCoords[i-1])
-            const prevRoomCoords = pathCoords[i-1];
-            const prevRoomId = `room-${prevRoomCoords.x}-${prevRoomCoords.z}`;
-            
-            currentRoom.el.setAttribute('puzzle-orb-pedestal', {
-                doorId: door.el.id,
-                prevRoomId: prevRoomId
-            });
-            console.log(`[Orbe] Sala ${currentRoom.id} necesita orbe de ${prevRoomId} para abrir ${door.el.id}`);
+function getDoorBetween(roomA, roomB) {
+    for (let dir in roomA.doors) {
+        if (roomA.neighbors[dir] === roomB) {
+            return roomA.doors[dir];
         }
-        else if (type === 2) {
-            currentRoom.el.setAttribute('puzzle-pressure-plate', {
-                doorId: door.el.id,
-            });
-
-            console.log(`[Placa] Sala ${currentRoom.id} usa caja para abrir ${door.el.id}`);
-        }
-        else if (type == 3){
-            currentRoom.el.setAttribute('puzzle-memory-match', {
-                doorId: door.el.id,
-                length: 4,
-                showSpeed: 650
-            });
-
-            console.log(`[Memory] Sala ${currentRoom.id} usa patrón de memoria para abrir ${door.el.id}`);
-        }
-        console.log(`[Puzzle] Sala ${currentRoom.id} abre puerta ${directionToNext} (${door.el.id})`);
     }
 
-    const last = pathCoords[pathCoords.length - 1];
-    const goalRoomId = `room-${last.x}-${last.z}`;
+    return null;
+}
 
-    const goalRoom = rooms[goalRoomId];
+function getUniqueDoors(rooms) {
+    const usedDoors = new Set();
+    const uniqueDoors = [];
+
+    Object.values(rooms).forEach(room => {
+        Object.values(room.doors).forEach(door => {
+            if (usedDoors.has(door)) return;
+
+            usedDoors.add(door);
+            uniqueDoors.push(door);
+        });
+    });
+
+    return uniqueDoors;
+}
+
+function buildPuzzleTargetMap(rooms, dungeon) {
+    const targetMap = new Map();
+    Object.values(rooms).forEach(room => targetMap.set(room.id, new Set()));
+
+    const assignedDoors = new Set();
+
+    Object.entries(dungeon.parentById).forEach(([childId, parentId]) => {
+        if (!parentId) return;
+
+        const parentRoom = rooms[parentId];
+        const childRoom = rooms[childId];
+        if (!parentRoom || !childRoom) return;
+
+        const door = getDoorBetween(parentRoom, childRoom);
+        if (!door) return;
+
+        targetMap.get(parentRoom.id).add(door);
+        assignedDoors.add(door);
+    });
+
+    getUniqueDoors(rooms).forEach(door => {
+        if (assignedDoors.has(door)) return;
+
+        const depthA = dungeon.depthById[door.roomA.id] ?? 0;
+        const depthB = dungeon.depthById[door.roomB.id] ?? 0;
+
+        const owner = depthA <= depthB ? door.roomA : door.roomB;
+
+        targetMap.get(owner.id).add(door);
+        assignedDoors.add(door);
+    });
+
+    Object.values(rooms).forEach(room => {
+        const targets = targetMap.get(room.id);
+
+        if (targets.size > 0) return;
+
+        const parentId = dungeon.parentById[room.id];
+        const parentRoom = parentId ? rooms[parentId] : null;
+
+        const fallbackDoor = parentRoom
+            ? getDoorBetween(room, parentRoom)
+            : Object.values(room.doors)[0];
+
+        if (fallbackDoor) {
+            targets.add(fallbackDoor);
+        }
+    });
+
+    return targetMap;
+}
+
+function getRandomPuzzleFloorPoint(roomSize, margin = 2) {
+    return {
+        x: -roomSize / 2 + margin + Math.random() * (roomSize - margin * 2),
+        z: -roomSize / 2 + margin + Math.random() * (roomSize - margin * 2)
+    };
+}
+
+function selectPuzzleType(room, previousRoom, orderIndex) {
+    if (!previousRoom) {
+        return orderIndex % 2 === 0 ? 'button' : 'pressure';
+    }
+
+    const cycle = [
+        'button',
+        'orb-pedestal',
+        'pressure',
+        'button',
+        'orb-pedestal',
+        'pressure'
+    ];
+
+    return cycle[orderIndex % cycle.length];
+}
+
+function attachButtonPuzzle(room, targetDoorIds, roomSize) {
+    const button = createCamouflagedWallButton(room.el, targetDoorIds, roomSize);
+    room.el.appendChild(button);
+}
+
+function attachPressurePlatePuzzle(room, targetDoorIds, roomSize) {
+    const puzzle = createCamouflagedPressurePlate(room.el, targetDoorIds, roomSize);
+
+    room.el.appendChild(puzzle.plate);
+    room.el.appendChild(createTestBox(puzzle.boxPosition));
+}
+
+function attachOrbPedestalPuzzle(room, previousRoom, targetDoorIds, roomSize) {
+    if (!previousRoom) {
+        attachButtonPuzzle(room, targetDoorIds, roomSize);
+        return;
+    }
+
+    const targetSelector = targetDoorIds
+        .map(id => id.startsWith('#') ? id : `#${id}`)
+        .join(',');
+
+    const pedestalPos = getRandomPuzzleFloorPoint(roomSize, 2.2);
+    const pedestal = createPedestal(`${pedestalPos.x} 0.5 ${pedestalPos.z}`, targetSelector);
+
+    pedestal.setAttribute('id', `${room.id}-pedestal`);
+    room.el.appendChild(pedestal);
+
+    const orbPos = getRandomPuzzleFloorPoint(roomSize, 2.2);
+    const orb = createOrb(`${orbPos.x} 1.2 ${orbPos.z}`);
+
+    orb.setAttribute('id', `${room.id}-orb-key`);
+    orb.setAttribute('data-puzzle-id', targetSelector);
+
+    previousRoom.el.appendChild(orb);
+
+    console.log(`[Orbe] ${room.id}: orbe colocado en ${previousRoom.id}`);
+}
+
+function assignPuzzlesRandom(rooms, dungeon, roomSize) {
+    const targetMap = buildPuzzleTargetMap(rooms, dungeon);
+
+    const orderedRooms = Object.values(rooms).sort((a, b) => {
+        const da = dungeon.depthById[a.id] ?? 0;
+        const db = dungeon.depthById[b.id] ?? 0;
+
+        return da - db || a.id.localeCompare(b.id);
+    });
+
+    orderedRooms.forEach((room, index) => {
+        const targetDoors = [...targetMap.get(room.id)];
+
+        const targetDoorIds = targetDoors
+            .map(door => door.el?.id)
+            .filter(Boolean);
+
+        if (targetDoorIds.length === 0) {
+            console.warn(`[Puzzle] ${room.id} no tiene puertas objetivo.`);
+            return;
+        }
+
+        targetDoors.forEach(door => {
+            door.hasPuzzle = true;
+        });
+
+        const previousRoomId = dungeon.parentById[room.id];
+        const previousRoom = previousRoomId ? rooms[previousRoomId] : null;
+
+        const type = selectPuzzleType(room, previousRoom, index);
+
+        room.puzzle = {
+            type,
+            targetDoorIds,
+            previousRoomId: previousRoom?.id || null
+        };
+
+        room.puzzleDoors = targetDoors;
+
+        if (type === 'button') {
+            attachButtonPuzzle(room, targetDoorIds, roomSize);
+        } else if (type === 'pressure') {
+            attachPressurePlatePuzzle(room, targetDoorIds, roomSize);
+        } else if (type === 'orb-pedestal') {
+            attachOrbPedestalPuzzle(room, previousRoom, targetDoorIds, roomSize);
+        }
+
+        console.log(
+            `[Puzzle] ${room.id} (${type}) abre ${targetDoorIds.join(', ')}`
+        );
+    });
+
+    const goalRoom = rooms[dungeon.goalRoomId];
+
     if (goalRoom) {
         goalRoom.isGoal = true;
-        console.log("Sala final:", goalRoomId);
+        console.log('Sala final:', goalRoom.id);
     }
 }
 
@@ -169,14 +516,13 @@ function createEndRoomTrigger(rooms, pathCoords, roomSize) {
     trigger.setAttribute('radius', '2.5');
     trigger.setAttribute('height', '0.08');
     trigger.setAttribute('position', '0 0.05 0');
+
     trigger.setAttribute('material', {
         color: '#00ffcc',
         opacity: 0.18,
         transparent: true
     });
 
-    // Para debug puedes dejarlo visible.
-    // Para beta final, pon visible false.
     trigger.setAttribute('visible', 'false');
 
     trigger.setAttribute('end-room-trigger', {
@@ -192,6 +538,7 @@ function rebuildGeneratedNavMesh(rooms, roomSize) {
     const scene = document.querySelector('a-scene');
 
     const oldNavMesh = document.querySelector('#generated-navmesh');
+
     if (oldNavMesh) {
         oldNavMesh.parentNode.removeChild(oldNavMesh);
     }
@@ -236,7 +583,6 @@ function rebuildGeneratedNavMesh(rooms, roomSize) {
         return rects.some(rect => rectContainsPoint(rect, x, z));
     }
 
-    // 1. Añadir zonas navegables de salas
     Object.values(rooms).forEach(room => {
         const cx = room.x * roomSize;
         const cz = room.z * roomSize;
@@ -249,7 +595,6 @@ function rebuildGeneratedNavMesh(rooms, roomSize) {
         );
     });
 
-    // 2. Añadir conectores de puertas
     const usedDoors = new Set();
 
     Object.values(rooms).forEach(room => {
@@ -309,8 +654,6 @@ function rebuildGeneratedNavMesh(rooms, roomSize) {
         }
     });
 
-    // 3. Crear una retícula usando todos los cortes de las zonas.
-    // Esto hace que salas y conectores compartan aristas exactas.
     const xs = [];
     const zs = [];
 
@@ -340,6 +683,7 @@ function rebuildGeneratedNavMesh(rooms, roomSize) {
         const index = vertices.length / 3;
         vertices.push(x, y, z);
         vertexMap.set(key, index);
+
         return index;
     }
 
@@ -401,7 +745,6 @@ function rebuildGeneratedNavMesh(rooms, roomSize) {
 
     scene.appendChild(navEntity);
 
-    // Importante: después de setObject3D
     navEntity.setAttribute('nav-mesh', '');
 
     console.log(
@@ -412,50 +755,3 @@ function rebuildGeneratedNavMesh(rooms, roomSize) {
         'triángulos'
     );
 }
-
-/*
-function createMap(width, height) {
-    const scene = document.querySelector('a-scene');
-
-    const layout = [
-        [1, 1, 1],
-        [1, 1, 1],
-        [1, 1, 1]
-    ];
-
-    const roomSize = 10;
-
-    layout.forEach((row, z) => {
-        row.forEach((cell, x) => {
-            if (cell === 1) {
-
-                const neighbors = {
-                    north: layout[z - 1]?.[x],
-                    south: layout[z + 1]?.[x],
-                    east:  layout[z]?.[x + 1],
-                    west:  layout[z]?.[x - 1],
-                };
-
-                const room = createBasicRoom(roomSize, `room-${x}-${z}`, `${x * roomSize} 0 ${z * roomSize}`, 'puzzle-button-door', neighbors);
-                scene.appendChild(room);
-
-                /*if (layout[z][x + 1] === 1) {
-                    createDoor(room, 'east', roomSize);
-                }
-
-                if (layout[z + 1]?.[x] === 1) {
-                    createDoor(room, 'south', roomSize);
-                }*/
-                /*
-            }
-        });
-    });
-    
-    /*const room1 = createBasicRoom('room1', '0 0 0', 'puzzle-button-door');
-    const room2 = createBasicRoom('room2', '10 0 0', 'puzzle-button-door');
-    const room3 = createBasicRoom('room3', '0 0 -10', null);
-
-    scene.appendChild(room1);
-    scene.appendChild(room2);
-    scene.appendChild(room3);
-}*/
