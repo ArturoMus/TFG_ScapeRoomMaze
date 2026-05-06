@@ -104,7 +104,7 @@ function assignPuzzlesPremium(rooms, pathCoords = null) {
         door.hasPuzzle = true;
         currentRoom.puzzleDoor = door; // Mantenemos la referencia por si acaso
 
-        const type = i % 3
+        const type = i % 4
 
         if (type === 0) {
             // PUZZLE DE BOTÓN
@@ -131,6 +131,15 @@ function assignPuzzlesPremium(rooms, pathCoords = null) {
             });
 
             console.log(`[Placa] Sala ${currentRoom.id} usa caja para abrir ${door.el.id}`);
+        }
+        else if (type == 3){
+            currentRoom.el.setAttribute('puzzle-memory-match', {
+                doorId: door.el.id,
+                length: 4,
+                showSpeed: 650
+            });
+
+            console.log(`[Memory] Sala ${currentRoom.id} usa patrón de memoria para abrir ${door.el.id}`);
         }
         console.log(`[Puzzle] Sala ${currentRoom.id} abre puerta ${directionToNext} (${door.el.id})`);
     }

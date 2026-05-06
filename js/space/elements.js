@@ -491,3 +491,161 @@ function createTestBox(position) {
 }
 
 
+function getMemoryPuzzleWallTransform(room, roomSize = 10) {
+    const roomId = room.getAttribute('id');
+    const roomData = window.rooms?.[roomId];
+    const neighbors = roomData?.neighbors || {};
+
+    const allDirections = ['north', 'south', 'east', 'west'];
+
+    // Preferimos paredes sin puerta.
+    const solidWalls = allDirections.filter(dir => !neighbors[dir]);
+    const possibleWalls = solidWalls.length > 0 ? solidWalls : allDirections;
+
+    const direction = randomChoice(possibleWalls);
+    const hasDoor = !!neighbors[direction];
+
+    const half = roomSize / 2;
+    const wallInnerFace = half - 0.14;
+
+    const lateral = randomWallLateral(hasDoor, roomSize);
+
+    switch (direction) {
+        case 'north':
+            return {
+                direction,
+                position: `${lateral} 1.55 ${-wallInnerFace}`,
+                rotation: '0 0 0'
+            };
+
+        case 'south':
+            return {
+                direction,
+                position: `${lateral} 1.55 ${wallInnerFace}`,
+                rotation: '0 180 0'
+            };
+
+        case 'east':
+            return {
+                direction,
+                position: `${wallInnerFace} 1.55 ${lateral}`,
+                rotation: '0 -90 0'
+            };
+
+        case 'west':
+            return {
+                direction,
+                position: `${-wallInnerFace} 1.55 ${lateral}`,
+                rotation: '0 90 0'
+            };
+    }
+}
+
+function createMemoryPuzzlePanel(room, roomSize = 10, options = {}) {
+    const transform = getMemoryPuzzleWallTransform(room, roomSize);
+
+    const puzzle = document.createElement('a-entity');
+    puzzle.setAttribute('position', transform.position);
+    puzzle.setAttribute('rotation', transform.rotation);
+
+    const panel = document.createElement('a-box');
+    panel.setAttribute('width', '2');
+    panel.setAttribute('height', '1.25');
+    panel.setAttribute('depth', '0.08');
+    panel.setAttribute('position', '0 0 0');
+    panel.setAttribute('material', {
+        color: '#222222',
+        opacity: 0.9
+    });
+    panel.setAttribute('class', 'ray-blocker');
+
+    puzzle.appendChild(panel);
+
+    const title = document.createElement('a-text');
+    title.setAttribute('value', 'Memoriza el patron');
+    title.setAttribute('align', 'center');
+    title.setAttribute('width', '2.4');
+    title.setAttribute('position', '0 0.46 0.08');
+    title.setAttribute('color', '#dddddd');
+
+    puzzle.appendChild(title);
+
+    const pads = [];
+
+    const padData = [
+        {
+            color: '#b83232',
+            activeColor: '#ff5555',
+            position: '-0.45 0.12 0.09'
+        },
+        {
+            color: '#2e5aac',
+            activeColor: '#5599ff',
+            position: '0.45 0.12 0.09'
+        },
+        {
+            color: '#2f8f46',
+            activeColor: '#55ff77',
+            position: '-0.45 -0.35 0.09'
+        },
+        {
+            color: '#b8a132',
+            activeColor: '#ffee55',
+            position: '0.45 -0.35 0.09'
+        }
+    ];
+
+    padData.forEach((data, index) => {
+        const pad = document.createElement('a-box');
+
+        pad.setAttribute('width', '0.42');
+        pad.setAttribute('height', '0.32');
+        pad.setAttribute('depth', '0.08');
+        pad.setAttribute('position', data.position);
+
+        pad.setAttribute('class', 'interactable');
+        pad.setAttribute('interactable', '');
+
+        pad.setAttribute('material', {
+            color: data.color,
+            emissive: data.color,
+            emissiveIntensity: 0.05
+        });
+
+        pad.dataset.index = index;
+        pad.baseColor = data.color;
+        pad.activeColor = data.activeColor;
+
+        pad.addEventListener('mouseenter', () => {
+            if (options.canHover && !options.canHover()) return;
+            pad.setAttribute('scale', '1.08 1.08 1.08');
+        });
+
+        pad.addEventListener('mouseleave', () => {
+            pad.setAttribute('scale', '1 1 1');
+        });
+
+        pad.addEventListener('click', () => {
+            if (options.onPadClick) {
+                options.onPadClick(index);
+            }
+        });
+
+        pads.push(pad);
+        puzzle.appendChild(pad);
+    });
+
+    room.appendChild(puzzle);
+
+    console.log(
+        `[Memory] Puzzle creado en ${room.getAttribute('id')}, pared ${transform.direction}`
+    );
+
+    return {
+        puzzle,
+        pads,
+        transform
+    };
+}
+
+
