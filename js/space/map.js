@@ -167,27 +167,164 @@ function getDeadEndBranches(tree, mainPathCoords) {
     return branches;
 }
 
-function getRandomBetaMazePlan() {
-    const layout = [
-        [1,1,1],
-        [1,1,1],
-        [1,1,1]
-    ];
+function createFullLayout(width, height) {
+    return Array.from({ length: height }, () => {
+        return Array.from({ length: width }, () => 1);
+    });
+}
 
-    const width = 3;
-    const height = 3;
+function sameCoord(a, b) {
+    return a.x === b.x && a.z === b.z;
+}
 
-    const start = { x: 0, z: 0 };
+function coordInList(coord, list) {
+    return list.some(item => sameCoord(item, coord));
+}
 
-    const tree = generateRandomMazeTree(width, height, start);
-    const mainPathCoords = getPathToFarthestRoom(tree, start);
-    const deadEndBranches = getDeadEndBranches(tree, mainPathCoords);
+function getUnusedNeighbors(coord, width, height, usedCoords) {
+    return shuffleArray(
+        getGridNeighbors(coord, width, height)
+            .filter(neighbor => !coordInList(neighbor, usedCoords))
+    );
+}
+
+function generateRandomMainPath(width, height, start, targetLength) {
+    const maxAttempts = 120;
+
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+        const path = [{ ...start }];
+
+        while (path.length < targetLength) {
+            const current = path[path.length - 1];
+            const candidates = getUnusedNeighbors(current, width, height, path);
+
+            if (candidates.length === 0) {
+                break;
+            }
+
+            path.push(candidates[0]);
+        }
+
+        if (path.length >= targetLength) {
+            return path;
+        }
+    }
+
+    console.warn("No se pudo generar camino principal largo. Usando fallback.");
+
+    return [
+        { x: 0, z: 0 },
+        { x: 0, z: 1 },
+        { x: 0, z: 2 },
+        { x: 1, z: 2 },
+        { x: 2, z: 2 }
+    ].filter(coord => coord.x < width && coord.z < height);
+}
+
+function generateDeadEndBranchesFromMainPath(width, height, mainPathCoords, options = {}) {
+    const branchCount = options.branchCount ?? 2;
+    const maxBranchLength = options.maxBranchLength ?? 2;
+
+    const branches = [];
+    const usedCoords = [...mainPathCoords];
+
+    // No generamos ramas desde inicio ni desde meta.
+    const possibleRoots = shuffleArray(mainPathCoords.slice(1, -1));
+
+    for (const root of possibleRoots) {
+        if (branches.length >= branchCount) break;
+
+        const branch = [root];
+
+        let current = root;
+
+        for (let depth = 0; depth < maxBranchLength; depth++) {
+            const candidates = getUnusedNeighbors(current, width, height, usedCoords);
+
+            if (candidates.length === 0) {
+                break;
+            }
+
+            const next = candidates[0];
+
+            branch.push(next);
+            usedCoords.push(next);
+            current = next;
+        }
+
+        // Solo cuenta como rama si realmente sale del camino principal.
+        if (branch.length > 1) {
+            branches.push(branch);
+        }
+    }
+
+    return branches;
+}
+
+function createConnectionsFromMazeParts(mainPathCoords, deadEndBranches) {
+    const connections = createConnectionsFromPath(mainPathCoords);
+
+    deadEndBranches.forEach(branch => {
+        const branchConnections = createConnectionsFromPath(branch);
+
+        branchConnections.forEach(connection => {
+            connections.add(connection);
+        });
+    });
+
+    return connections;
+}
+
+
+function getRandomBetaMazePlan(config = {}) {
+    const width = config.width ?? 3;
+    const height = config.height ?? 3;
+
+    const mainPathLength = config.mainPathLength ?? Math.min(
+        width * height,
+        Math.ceil(width * height * 0.55)
+    );
+
+    const branchCount = config.branchCount ?? Math.max(
+        1,
+        Math.floor((width * height - mainPathLength) / 2)
+    );
+
+    const maxBranchLength = config.maxBranchLength ?? 2;
+
+    const layout = createFullLayout(width, height);
+
+    const start = config.start ?? { x: 0, z: 0 };
+
+    const mainPathCoords = generateRandomMainPath(
+        width,
+        height,
+        start,
+        mainPathLength
+    );
+
+    const deadEndBranches = generateDeadEndBranchesFromMainPath(
+        width,
+        height,
+        mainPathCoords,
+        {
+            branchCount,
+            maxBranchLength
+        }
+    );
+
+    const allowedConnections = createConnectionsFromMazeParts(
+        mainPathCoords,
+        deadEndBranches
+    );
 
     return {
         layout,
+        width,
+        height,
         mainPathCoords,
         deadEndBranches,
-        allowedConnections: tree.edges
+        allowedConnections
     };
 }
 
@@ -224,7 +361,14 @@ AFRAME.registerComponent('map', {
     }*/
     init: function () {
 
-        const mazePlan = getRandomBetaMazePlan();
+        const mazePlan = getRandomBetaMazePlan({
+            width: 3,
+            height: 3,
+            mainPathLength: 5,
+            branchCount: 2,
+            maxBranchLength: 2,
+            start: { x: 0, z: 0 }
+        });
 
         const layout = mazePlan.layout;
         const roomSize = 10;
