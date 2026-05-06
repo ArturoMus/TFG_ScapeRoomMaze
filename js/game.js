@@ -118,6 +118,10 @@ function endGame() {
 
     const endScreen = document.querySelector('#end-screen');
 
+    console.log('endScreen:', endScreen);
+    console.log('components:', endScreen?.components);
+    console.log('vr-end-screen:', endScreen?.components?.['vr-end-screen']);
+
     if (endScreen?.components['vr-end-screen']) {
         endScreen.components['vr-end-screen'].setTime(formattedTime);
 
@@ -136,26 +140,23 @@ function formatGameTime(milliseconds) {
     return `${minutes}:${seconds.toString().padStart(2, '0')}`;
 }
 
-function placeEntityInFrontOfCamera(entity, distance = 2.4) {
+function placeEntityInFrontOfCamera(entity, distance = 2.2) {
     const camera = document.querySelector('#camera');
 
-    if (!camera || !entity) return;
+    if (!camera || !entity) {
+        console.warn('No se pudo colocar la pantalla final delante de la cámara');
+        return;
+    }
 
-    const cameraPos = new THREE.Vector3();
-    const cameraDir = new THREE.Vector3();
+    // Hacemos que el panel sea hijo de la cámara.
+    // Así aparece siempre delante del jugador en VR.
+    camera.appendChild(entity);
 
-    camera.object3D.getWorldPosition(cameraPos);
-    camera.object3D.getWorldDirection(cameraDir);
+    entity.setAttribute('position', `0 0 -${distance}`);
+    entity.setAttribute('rotation', '0 0 0');
+    entity.setAttribute('visible', 'true');
 
-    const targetPos = cameraPos.clone().add(cameraDir.multiplyScalar(distance));
-
-    entity.object3D.position.copy(targetPos);
-
-    // Mantener el panel aproximadamente a altura de ojos.
-    entity.object3D.position.y = cameraPos.y;
-
-    // Hacer que el panel mire hacia el jugador.
-    entity.object3D.lookAt(cameraPos);
+    console.log('Pantalla final colocada delante de la cámara');
 }
 
 
