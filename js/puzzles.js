@@ -12,6 +12,11 @@ function getPuzzleDoorIds(data) {
         .filter(Boolean);
 }
 
+function getFirstPuzzleDoorId(data) {
+    const first = getPuzzleDoorIds(data)[0] || '';
+    return first.replace('#', '');
+}
+
 function getPuzzleDoorSelectors(data) {
     return getPuzzleDoorIds(data)
         .map(id => id.startsWith('#') ? id : `#${id}`)
