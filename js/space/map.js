@@ -659,9 +659,10 @@ function rebuildGeneratedNavMesh(rooms, roomSize) {
         oldNavMesh.parentNode.removeChild(oldNavMesh);
     }
 
+    // Deja de verde la navmesh
     const NAVMESH_DEBUG = true;
 
-    // En beta real debería ser false para que las puertas cerradas bloqueen.
+    // Sirve para que pueda ir por las habitaciones de chill
     const ALLOW_CLOSED_DOORS = false;
 
     const playerMargin = 0.45;

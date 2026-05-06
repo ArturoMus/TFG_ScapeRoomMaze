@@ -1,50 +1,54 @@
 AFRAME.registerComponent('desktop-grabber', {
     schema: {
         holder: { type: 'selector' },
-        throwForce: { type: 'number', default: 2.5 }
+        throwForce: { type: 'number', default: 4 },
+        interactButton: { type: 'number', default: 0 } // 0 = click izquierdo
     },
 
     init: function () {
-        this.grabbedEl = null;
-        this.originalDynamicBody = null;
+        this.heldEl = null;
+        this.isMouseDown = false;
 
         this.onMouseDown = this.onMouseDown.bind(this);
+        this.onMouseUp = this.onMouseUp.bind(this);
         this.onContextMenu = e => e.preventDefault();
 
         window.addEventListener('mousedown', this.onMouseDown);
+        window.addEventListener('mouseup', this.onMouseUp);
         window.addEventListener('contextmenu', this.onContextMenu);
     },
 
     remove: function () {
         window.removeEventListener('mousedown', this.onMouseDown);
+        window.removeEventListener('mouseup', this.onMouseUp);
         window.removeEventListener('contextmenu', this.onContextMenu);
     },
 
     onMouseDown: function (e) {
-        // Click izquierdo: coger / soltar
-        if (e.button === 0) {
-            if (this.grabbedEl) {
-                this.release(false);
-                return;
-            }
+        if (e.button !== this.data.interactButton) return;
 
-            const target = this.getRaycastTarget();
+        this.isMouseDown = true;
 
-            if (!target) return;
+        const target = this.getRaycastTarget();
 
-            if (target.classList.contains('grabbable')) {
-                this.grab(target);
-                return;
-            }
+        if (!target) return;
 
-            // Opcional: mantener interacción normal con botones/puzzles
-            if (target.classList.contains('interactable')) {
-                this.tryInteract(target);
-            }
+        if (target.classList.contains('grabbable')) {
+            this.grab(target);
+            return;
         }
 
-        // Click derecho: lanzar si llevas algo
-        if (e.button === 2 && this.grabbedEl) {
+        if (target.classList.contains('interactable')) {
+            this.tryInteract(target);
+        }
+    },
+
+    onMouseUp: function (e) {
+        if (e.button !== this.data.interactButton) return;
+
+        this.isMouseDown = false;
+
+        if (this.heldEl) {
             this.release(true);
         }
     },
@@ -57,21 +61,21 @@ AFRAME.registerComponent('desktop-grabber', {
         const intersections = raycaster.intersections;
 
         for (const hit of intersections) {
-            const el = hit.el;
+            const el = hit.object?.el || hit.el;
 
             if (!el) continue;
 
+            const isBlocker = el.classList.contains('ray-blocker');
             const isGrabbable = el.classList.contains('grabbable');
             const isInteractable = el.classList.contains('interactable');
-            const isBlocker = el.classList.contains('ray-blocker');
+
+            // Si lo primero que tocamos es pared/puerta, no podemos coger ni pulsar lo de detrás.
+            if (isBlocker) {
+                return null;
+            }
 
             if (isGrabbable || isInteractable) {
                 return el;
-            }
-
-            // Si lo primero que toca es pared/suelo, no atraviesa la pared
-            if (isBlocker) {
-                return null;
             }
         }
 
@@ -84,105 +88,67 @@ AFRAME.registerComponent('desktop-grabber', {
             return;
         }
 
-        this.grabbedEl = el;
+        if (this.heldEl) return;
 
-        this.originalDynamicBody = el.getAttribute('dynamic-body');
-
-        if (el.body) {
-            el.body.velocity.set(0, 0, 0);
-            el.body.angularVelocity.set(0, 0, 0);
-            el.body.force.set(0, 0, 0);
-            el.body.torque.set(0, 0, 0);
-        }
-
-        el.removeAttribute('dynamic-body');
-
-        this.data.holder.appendChild(el);
-
-        el.object3D.position.set(0, 0, 0);
-        el.object3D.rotation.set(0, 0, 0);
-
-        if (el.components.box) {
-            el.components.box.isCarried = true;
-        }
+        this.heldEl = el;
 
         if (el.components.orb) {
-            el.components.orb.isCarried = true;
-            el.components.orb.holder = this.data.holder;
-            el.components.orb.isPlaced = false;
+            el.components.orb.grab(this.data.holder);
         }
-
-        if (el.hasAttribute('orb') && window.playerState) {
-            window.playerState.hasOrb = true;
-            window.playerState.currentOrb = el;
+        else if (el.components.box) {
+            el.components.box.grab(this.data.holder);
+        }
+        else {
+            console.warn('[desktop-grabber] El objeto no tiene componente orb ni box:', el);
+            this.heldEl = null;
+            return;
         }
 
         console.log('[desktop-grabber] Objeto cogido:', el);
     },
 
-    release: function (shouldThrow) {
-        const el = this.grabbedEl;
+    release: function (shouldThrow = true) {
+        const el = this.heldEl;
+
         if (!el) return;
 
-        const scene = this.el.sceneEl;
+        const velocity = shouldThrow
+            ? this.getThrowVelocity()
+            : null;
 
-        const worldPos = new THREE.Vector3();
-        const worldQuat = new THREE.Quaternion();
-
-        el.object3D.updateMatrixWorld(true);
-        el.object3D.getWorldPosition(worldPos);
-        el.object3D.getWorldQuaternion(worldQuat);
-
-        scene.appendChild(el);
-
-        el.object3D.position.copy(worldPos);
-        el.object3D.quaternion.copy(worldQuat);
-
-        if (this.originalDynamicBody !== null) {
-            el.setAttribute('dynamic-body', this.originalDynamicBody);
-        } else {
-            el.setAttribute('dynamic-body', '');
-        }
-
-        if (el.components.box) {
-            el.components.box.isCarried = false;
-        }
+        const options = {
+            velocity
+        };
 
         if (el.components.orb) {
-            el.components.orb.isCarried = false;
-            el.components.orb.holder = null;
+            el.components.orb.release(options);
+        }
+        else if (el.components.box) {
+            el.components.box.release(options);
         }
 
-        if (el.hasAttribute('orb') && window.playerState) {
-            window.playerState.hasOrb = false;
-            window.playerState.currentOrb = null;
-        }
+        this.heldEl = null;
 
-        if (shouldThrow) {
-            setTimeout(() => {
-                if (!el.body) return;
+        console.log('[desktop-grabber] Objeto soltado/lanzado:', el);
+    },
 
-                const direction = new THREE.Vector3();
-                this.el.object3D.getWorldDirection(direction);
+    getThrowVelocity: function () {
+        const direction = new THREE.Vector3();
 
-                el.body.velocity.set(
-                    direction.x * this.data.throwForce,
-                    1.2,
-                    direction.z * this.data.throwForce
-                );
-            }, 0);
-        }
+        // En Three/A-Frame la cámara mira hacia -Z.
+        this.el.object3D.getWorldDirection(direction);
 
-        this.grabbedEl = null;
-        this.originalDynamicBody = null;
-
-        console.log('[desktop-grabber] Objeto soltado:', el);
+        return direction.multiplyScalar(this.data.throwForce);
     },
 
     tryInteract: function (el) {
         Object.values(el.components).forEach(component => {
             if (component && typeof component.interact === 'function') {
-                component.interact();
+                component.interact({
+                    detail: {
+                        cursorEl: this.el
+                    }
+                });
             }
         });
     }
