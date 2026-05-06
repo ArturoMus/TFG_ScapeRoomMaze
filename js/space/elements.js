@@ -407,7 +407,7 @@ function createPedestal(position, doorSelector) {
     base.setAttribute('class', 'interactable');
     base.setAttribute('interactable', '');
     base.setAttribute('pedestal', {
-        targets: targetSelectors,
+        targets: doorSelector,
         puzzleID: Array.isArray(doorSelector) ? doorSelector[0] : doorSelector
     });
 
