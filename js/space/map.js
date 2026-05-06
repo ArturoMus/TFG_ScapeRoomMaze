@@ -167,6 +167,41 @@ function getDeadEndBranches(tree, mainPathCoords) {
     return branches;
 }
 
+function getMazeUsedCoords(mainPathCoords, deadEndBranches) {
+    const used = new Map();
+
+    mainPathCoords.forEach(coord => {
+        used.set(coordKey(coord), coord);
+    });
+
+    deadEndBranches.forEach(branch => {
+        branch.forEach(coord => {
+            used.set(coordKey(coord), coord);
+        });
+    });
+
+    return [...used.values()];
+}
+
+function createLayoutFromCoords(width, height, coords) {
+    const layout = Array.from({ length: height }, () => {
+        return Array.from({ length: width }, () => 0);
+    });
+
+    coords.forEach(coord => {
+        if (
+            coord.x >= 0 &&
+            coord.x < width &&
+            coord.z >= 0 &&
+            coord.z < height
+        ) {
+            layout[coord.z][coord.x] = 1;
+        }
+    });
+
+    return layout;
+}
+
 function createFullLayout(width, height) {
     return Array.from({ length: height }, () => {
         return Array.from({ length: width }, () => 1);
@@ -292,7 +327,7 @@ function getRandomBetaMazePlan(config = {}) {
 
     const maxBranchLength = config.maxBranchLength ?? 2;
 
-    const layout = createFullLayout(width, height);
+    let layout = null;
 
     const start = config.start ?? { x: 0, z: 0 };
 
@@ -312,6 +347,9 @@ function getRandomBetaMazePlan(config = {}) {
             maxBranchLength
         }
     );
+
+    const usedCoords = getMazeUsedCoords(mainPathCoords, deadEndBranches);
+    layout = createLayoutFromCoords(width, height, usedCoords);
 
     const allowedConnections = createConnectionsFromMazeParts(
         mainPathCoords,
@@ -390,8 +428,6 @@ AFRAME.registerComponent('map', {
         window.rebuildNavMesh = () => rebuildGeneratedNavMesh(rooms, roomSize);
 
         assignProgressionPuzzles(rooms, mainPathCoords, deadEndBranches);
-
-        createEndRoomTrigger?.(rooms, mainPathCoords, roomSize);
 
         console.log("Mapa aleatorio generado");
         console.log("Camino principal:", mainPathCoords);
@@ -788,142 +824,264 @@ function getDeadEndPuzzleType(index) {
     return types[index % types.length];
 }
 
+function addUnique(array, value) {
+    if (!value) return;
+    if (!array.includes(value)) array.push(value);
+}
+
+function getRoomByCoord(rooms, coord) {
+    return rooms[`room-${coord.x}-${coord.z}`] || null;
+}
+
+function getPreviousRoomIdFromPathOrBranch(pathCoords, index) {
+    const prev = pathCoords[index - 1];
+    return prev ? `room-${prev.x}-${prev.z}` : null;
+}
+
+function lockAndGetDoorId(door) {
+    if (!door) return null;
+
+    lockDoorForPuzzle(door);
+
+    door.hasPuzzle = true;
+
+    return ensureDoorId(door);
+}
+
+function addPuzzleJob(jobs, room, doorIds, options = {}) {
+    if (!room || !room.el) return;
+
+    const cleanDoorIds = doorIds.filter(Boolean);
+    if (cleanDoorIds.length === 0) return;
+
+    if (!jobs.has(room.id)) {
+        jobs.set(room.id, {
+            room,
+            doorIds: [],
+            prevRoomId: options.prevRoomId || null
+        });
+    }
+
+    const job = jobs.get(room.id);
+
+    cleanDoorIds.forEach(id => addUnique(job.doorIds, id));
+
+    if (!job.prevRoomId && options.prevRoomId) {
+        job.prevRoomId = options.prevRoomId;
+    }
+}
+
+function getBranchRootMap(deadEndBranches) {
+    const map = new Map();
+
+    deadEndBranches.forEach(branch => {
+        if (!branch || branch.length < 2) return;
+
+        const rootKey = coordKey(branch[0]);
+
+        if (!map.has(rootKey)) {
+            map.set(rootKey, []);
+        }
+
+        map.get(rootKey).push(branch);
+    });
+
+    return map;
+}
+
+function createFinalPuzzleTarget(room, roomSize) {
+    const targetId = `final-exit-target-${room.id}`;
+
+    if (document.getElementById(targetId)) {
+        return targetId;
+    }
+
+    const target = document.createElement('a-entity');
+    target.setAttribute('id', targetId);
+
+    target.addEventListener('openDoor', () => {
+        if (target.dataset.opened === 'true') return;
+
+        target.dataset.opened = 'true';
+
+        const trigger = document.createElement('a-cylinder');
+
+        trigger.setAttribute('radius', '2.5');
+        trigger.setAttribute('height', '0.08');
+        trigger.setAttribute('position', '0 0.05 0');
+        trigger.setAttribute('material', {
+            color: '#00ffcc',
+            opacity: 0.18,
+            transparent: true
+        });
+
+        trigger.setAttribute('visible', 'false');
+        trigger.setAttribute('end-room-trigger', {
+            radius: 2.8
+        });
+
+        room.el.appendChild(trigger);
+
+        console.log(`[Final] Trigger final activado en ${room.id}`);
+    });
+
+    room.el.appendChild(target);
+
+    return targetId;
+}
+
 function assignProgressionPuzzles(rooms, mainPathCoords, deadEndBranches) {
     if (!mainPathCoords || mainPathCoords.length < 2) {
         console.warn("No hay camino principal para asignar puzzles.");
         return;
     }
 
-    const branchesByRoot = buildBranchesByRoot(deadEndBranches);
-    const usedDoors = new Set();
-    let deadEndPuzzleCount = 0;
+    const jobs = new Map();
+    const branchesByRoot = getBranchRootMap(deadEndBranches);
+    const mainPathIndexByCoord = new Map();
 
+    mainPathCoords.forEach((coord, index) => {
+        mainPathIndexByCoord.set(coordKey(coord), index);
+    });
+
+    // 1. Puertas de ramas:
+    // root -> branch[1], branch[1] -> branch[2], etc.
+    // El último cuarto de la rama abre la siguiente puerta del camino principal.
+    deadEndBranches.forEach((branch, branchIndex) => {
+        if (!branch || branch.length < 2) return;
+
+        const root = branch[0];
+        const rootKey = coordKey(root);
+        const rootMainIndex = mainPathIndexByCoord.get(rootKey);
+
+        if (rootMainIndex === undefined) {
+            console.warn("Rama con root fuera del camino principal:", branch);
+            return;
+        }
+
+        // Cada sala de la rama abre la siguiente puerta de la rama.
+        for (let i = 0; i < branch.length - 1; i++) {
+            const currentCoord = branch[i];
+            const nextCoord = branch[i + 1];
+
+            const currentRoom = getRoomByCoord(rooms, currentCoord);
+            const door = getDoorBetweenCoords(rooms, currentCoord, nextCoord);
+            const doorId = lockAndGetDoorId(door);
+
+            const prevRoomId = i === 0
+                ? getPreviousRoomIdFromPathOrBranch(mainPathCoords, rootMainIndex)
+                : `room-${branch[i - 1].x}-${branch[i - 1].z}`;
+
+            addPuzzleJob(jobs, currentRoom, [doorId], {
+                prevRoomId
+            });
+        }
+
+        // El deadend abre la siguiente puerta del camino principal.
+        const nextMainCoord = mainPathCoords[rootMainIndex + 1];
+
+        if (nextMainCoord) {
+            const mainDoor = getDoorBetweenCoords(rooms, root, nextMainCoord);
+            const mainDoorId = lockAndGetDoorId(mainDoor);
+
+            const deadEndCoord = branch[branch.length - 1];
+            const deadEndRoom = getRoomByCoord(rooms, deadEndCoord);
+
+            const prevBranchCoord = branch[branch.length - 2];
+            const prevRoomId = `room-${prevBranchCoord.x}-${prevBranchCoord.z}`;
+
+            addPuzzleJob(jobs, deadEndRoom, [mainDoorId], {
+                prevRoomId
+            });
+
+            console.log(
+                `[Deadend] ${deadEndRoom?.id} abre puerta de progresión ${mainDoorId}`
+            );
+        }
+    });
+
+    // 2. Puertas normales del camino principal.
+    // Si una sala principal tiene rama, NO abre la siguiente puerta principal directamente:
+    // primero obliga al jugador a ir al deadend.
     for (let i = 0; i < mainPathCoords.length - 1; i++) {
         const currentCoord = mainPathCoords[i];
         const nextCoord = mainPathCoords[i + 1];
 
-        const currentRoom = rooms[`room-${currentCoord.x}-${currentCoord.z}`];
-        const nextRoom = rooms[`room-${nextCoord.x}-${nextCoord.z}`];
-
-        if (!currentRoom || !nextRoom) continue;
-
-        const door = getDoorBetweenCoords(rooms, currentCoord, nextCoord);
-
-        if (!door) {
-            console.warn("No se encontró puerta entre:", currentCoord, nextCoord);
-            continue;
-        }
-
-        if (usedDoors.has(door)) continue;
-        usedDoors.add(door);
-
-        const doorId = ensureDoorId(door);
-
-        if (!doorId) {
-            console.warn("Puerta sin ID:", door);
-            continue;
-        }
-
-        door.hasPuzzle = true;
-        currentRoom.puzzleDoor = door;
-
-        lockDoorForPuzzle(door);
-
+        const currentRoom = getRoomByCoord(rooms, currentCoord);
         const rootKey = coordKey(currentCoord);
         const branchesFromThisRoom = branchesByRoot.get(rootKey) || [];
 
-        const hasForcedDeadEnd = branchesFromThisRoom.length > 0;
-
-        if (hasForcedDeadEnd) {
-            const branch = branchesFromThisRoom.shift();
-
-            unlockBranchDoors(rooms, branch);
-
-            const deadEndCoord = branch[branch.length - 1];
-            const deadEndRoom = rooms[`room-${deadEndCoord.x}-${deadEndCoord.z}`];
-
-            if (!deadEndRoom) {
-                console.warn("Deadend sin sala:", deadEndCoord);
-                continue;
-            }
-
-            const type = getDeadEndPuzzleType(deadEndPuzzleCount);
-            deadEndPuzzleCount++;
-
-            placePuzzleForDoor({
-                room: deadEndRoom,
-                doorIds: [doorId],
-                type: type
-            });
-
-            console.log(
-                `[Progresión] Puerta ${doorId} se abre desde deadend ${deadEndRoom.id}`
-            );
+        if (branchesFromThisRoom.length > 0) {
+            continue;
         }
 
-        else {
-            const type = getMainPuzzleType(i);
+        const door = getDoorBetweenCoords(rooms, currentCoord, nextCoord);
+        const doorId = lockAndGetDoorId(door);
 
-            const prevRoomCoord = mainPathCoords[i - 1];
-            const prevRoomId = prevRoomCoord
-                ? `room-${prevRoomCoord.x}-${prevRoomCoord.z}`
-                : null;
+        const prevRoomId = getPreviousRoomIdFromPathOrBranch(mainPathCoords, i);
 
-            placePuzzleForDoor({
-                room: currentRoom,
-                doorIds: [doorId],
-                type: type,
-                prevRoomId: prevRoomId
-            });
+        addPuzzleJob(jobs, currentRoom, [doorId], {
+            prevRoomId
+        });
+    }
 
-            console.log(
-                `[Progresión] Puerta ${doorId} se abre desde sala principal ${currentRoom.id}`
-            );
+    // 3. Puzzle final: la última habitación también tiene puzzle.
+    const finalCoord = mainPathCoords[mainPathCoords.length - 1];
+    const finalRoom = getRoomByCoord(rooms, finalCoord);
+
+    if (finalRoom) {
+        finalRoom.isGoal = true;
+
+        const finalTargetId = createFinalPuzzleTarget(
+            finalRoom,
+            window.roomSize || 10
+        );
+
+        const prevFinalCoord = mainPathCoords[mainPathCoords.length - 2];
+        const prevRoomId = prevFinalCoord
+            ? `room-${prevFinalCoord.x}-${prevFinalCoord.z}`
+            : null;
+
+        addPuzzleJob(jobs, finalRoom, [finalTargetId], {
+            prevRoomId
+        });
+
+        console.log("Sala final con puzzle:", finalRoom.id);
+    }
+
+    // 4. Colocar físicamente los puzzles.
+    let puzzleIndex = 0;
+
+    jobs.forEach(job => {
+        const type = job.prevRoomId
+            ? getMainPuzzleType(puzzleIndex)
+            : getMainPuzzleType(0);
+
+        placePuzzleForDoor({
+            room: job.room,
+            doorIds: job.doorIds,
+            type,
+            prevRoomId: job.prevRoomId
+        });
+
+        job.room.puzzle = {
+            type,
+            doorIds: job.doorIds
+        };
+
+        console.log(
+            `[Puzzle asignado] ${job.room.id} abre ${job.doorIds.join(', ')}`
+        );
+
+        puzzleIndex++;
+    });
+
+    // 5. Debug: comprobar habitaciones reales sin puzzle.
+    Object.values(rooms).forEach(room => {
+        if (!room.puzzle) {
+            console.warn(`[Puzzle faltante] ${room.id} no tiene puzzle asignado.`);
         }
-    }
-
-    const last = mainPathCoords[mainPathCoords.length - 1];
-    const goalRoomId = `room-${last.x}-${last.z}`;
-    const goalRoom = rooms[goalRoomId];
-
-    if (goalRoom) {
-        goalRoom.isGoal = true;
-        console.log("Sala final:", goalRoomId);
-    }
-}
-
-function createEndRoomTrigger(rooms, pathCoords, roomSize) {
-    const lastCoord = pathCoords[pathCoords.length - 1];
-    const lastRoomId = `room-${lastCoord.x}-${lastCoord.z}`;
-    const lastRoom = rooms[lastRoomId];
-
-    if (!lastRoom || !lastRoom.el) {
-        console.warn('No se pudo crear trigger final. Sala no encontrada:', lastRoomId);
-        return;
-    }
-
-    const trigger = document.createElement('a-cylinder');
-
-    trigger.setAttribute('radius', '2.5');
-    trigger.setAttribute('height', '0.08');
-    trigger.setAttribute('position', '0 0.05 0');
-    trigger.setAttribute('material', {
-        color: '#00ffcc',
-        opacity: 0.18,
-        transparent: true
     });
-
-    // Para debug puedes dejarlo visible.
-    // Para beta final, pon visible false.
-    trigger.setAttribute('visible', 'false');
-
-    trigger.setAttribute('end-room-trigger', {
-        radius: 2.8
-    });
-
-    lastRoom.el.appendChild(trigger);
-
-    console.log('Trigger final creado en', lastRoomId);
 }
 
 function rebuildGeneratedNavMesh(rooms, roomSize) {

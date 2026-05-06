@@ -440,7 +440,7 @@ function createPressurePlate(position, doorSelector, options={}) {
     //plate.setAttribute('static-body', '');
     
     plate.setAttribute('pressure-plate', {
-        target: normalizeTargetSelectors(doorSelector),
+        targets: normalizeTargetSelectors(doorSelector),
         pressDepth: options.pressDepth ?? 0.025
     });
     return plate;
