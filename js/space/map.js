@@ -36,6 +36,7 @@ AFRAME.registerComponent('map', {
         window.rebuildNavMesh = () => rebuildGeneratedNavMesh(rooms, roomSize);
         
         assignPuzzlesPremium(rooms);
+        createEndRoomTrigger(rooms, mainPathCoords, roomSize);
     }
 });
 
@@ -144,44 +145,38 @@ function assignPuzzlesPremium(rooms, pathCoords = null) {
     }
 }
 
-function assignPuzzles(rooms) {
-    
-    Object.values(rooms).forEach(room => {
+function createEndRoomTrigger(rooms, pathCoords, roomSize) {
+    const lastCoord = pathCoords[pathCoords.length - 1];
+    const lastRoomId = `room-${lastCoord.x}-${lastCoord.z}`;
+    const lastRoom = rooms[lastRoomId];
 
-        // Buscar una puerta sin puzzle asignado
-        const doorKey = Object.keys(room.doors).find(key => !room.doors[key].hasPuzzle);
+    if (!lastRoom || !lastRoom.el) {
+        console.warn('No se pudo crear trigger final. Sala no encontrada:', lastRoomId);
+        return;
+    }
 
-        if (doorKey) {
-            const targetDoor = room.doors[doorKey];
+    const trigger = document.createElement('a-cylinder');
 
-            targetDoor.hasPuzzle = true; // marcar puerta como asignada a puzzle
-
-            room.puzzle = 'puzzle-button-door';
-            room.puzzleDoor = targetDoor;
-
-            //Añadir el componente de puzzle a la habitación, pasando el ID de la puerta como parámetro
-            room.el.setAttribute('puzzle-button-door', {
-                doorId: targetDoor.el.id
-            });
-
-            console.log(`Puzzle asignado a ${room.id} controlando puerta ${targetDoor.el.id}`);
-        }
-
-        // ejemplo: 30% rooms tienen puzzle
-        if (Object.keys(room.doors).length > 0) {
-
-            room.puzzle = 'puzzle-button-door';
-
-            const doorKey = Object.keys(room.doors)[0];
-            const targetDoor = room.doors[doorKey];
-            room.puzzleDoor = targetDoor;
-
-            // Pasamos el ID de la puerta como un parámetro al componente
-            room.el.setAttribute('puzzle-button-door', {
-                doorId: targetDoor.el.id
-            });
-        }
+    trigger.setAttribute('radius', '2.5');
+    trigger.setAttribute('height', '0.08');
+    trigger.setAttribute('position', '0 0.05 0');
+    trigger.setAttribute('material', {
+        color: '#00ffcc',
+        opacity: 0.18,
+        transparent: true
     });
+
+    // Para debug puedes dejarlo visible.
+    // Para beta final, pon visible false.
+    trigger.setAttribute('visible', 'false');
+
+    trigger.setAttribute('end-room-trigger', {
+        radius: 2.8
+    });
+
+    lastRoom.el.appendChild(trigger);
+
+    console.log('Trigger final creado en', lastRoomId);
 }
 
 function rebuildGeneratedNavMesh(rooms, roomSize) {

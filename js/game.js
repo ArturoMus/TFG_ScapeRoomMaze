@@ -2,7 +2,9 @@
 window.gameState = {
     finished: false,
     started: false,
-    mapGenerated: false
+    mapGenerated: false,
+    startTime: null,
+    endTime: null
 };
 
 window.playerState = {
@@ -56,6 +58,7 @@ window.startGameFromMenu = function () {
     if (window.gameState.started) return;
 
     window.gameState.started = true;
+    window.gameState.startTime = performance.now();
 
     const mainMenu = document.querySelector('#main-menu');
     const loadingScreen = document.querySelector('#loading-screen');
@@ -101,30 +104,101 @@ function endGame() {
     if (window.gameState.finished) return;
 
     window.gameState.finished = true;
+    window.gameState.endTime = performance.now();
 
     console.log("Juego terminado");
 
     setPlayerMovementEnabled(false);
 
-    const loadingScreen = document.querySelector('#loading-screen');
+    const elapsed = window.gameState.startTime
+        ? window.gameState.endTime - window.gameState.startTime
+        : 0;
 
-    if (loadingScreen?.components['vr-loading-screen']) {
-        loadingScreen.components['vr-loading-screen'].setContent(
-            '¡Has ganado!',
-            'Has encontrado la salida de la mazmorra.',
-            'Gracias por jugar la beta.'
-        );
+    const formattedTime = formatGameTime(elapsed);
 
-        loadingScreen.components['vr-loading-screen'].show();
+    const endScreen = document.querySelector('#end-screen');
+
+    if (endScreen?.components['vr-end-screen']) {
+        endScreen.components['vr-end-screen'].setTime(formattedTime);
+
+        placeEntityInFrontOfCamera(endScreen, 2.4);
+
+        endScreen.components['vr-end-screen'].show();
     }
 
-    // Fallback HTML para navegador
+    // Fallback HTML por si estás probando en navegador
     const overlay = document.getElementById('overlay');
     if (overlay) {
         overlay.style.display = 'flex';
-        overlay.querySelector('h1').textContent = '¡Has ganado!';
+        overlay.querySelector('h1').textContent = `¡Has ganado! Tiempo: ${formattedTime}`;
     }
 }
+
+function formatGameTime(milliseconds) {
+    const totalSeconds = Math.floor(milliseconds / 1000);
+
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+
+    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+}
+
+function placeEntityInFrontOfCamera(entity, distance = 2.4) {
+    const camera = document.querySelector('#camera');
+
+    if (!camera || !entity) return;
+
+    const cameraPos = new THREE.Vector3();
+    const cameraDir = new THREE.Vector3();
+
+    camera.object3D.getWorldPosition(cameraPos);
+    camera.object3D.getWorldDirection(cameraDir);
+
+    const targetPos = cameraPos.clone().add(cameraDir.multiplyScalar(distance));
+
+    entity.object3D.position.copy(targetPos);
+
+    // Mantener el panel aproximadamente a altura de ojos.
+    entity.object3D.position.y = cameraPos.y;
+
+    // Hacer que el panel mire hacia el jugador.
+    entity.object3D.lookAt(cameraPos);
+}
+
+
+AFRAME.registerComponent('end-room-trigger', {
+    schema: {
+        radius: { type: 'number', default: 2.8 }
+    },
+
+    init: function () {
+        this.hasTriggered = false;
+        this.player = document.querySelector('#player');
+
+        this.triggerPos = new THREE.Vector3();
+        this.playerPos = new THREE.Vector3();
+    },
+
+    tick: function () {
+        if (this.hasTriggered) return;
+        if (!window.gameState?.started) return;
+        if (window.gameState?.finished) return;
+        if (!this.player) return;
+
+        this.el.object3D.getWorldPosition(this.triggerPos);
+        this.player.object3D.getWorldPosition(this.playerPos);
+
+        const dx = this.playerPos.x - this.triggerPos.x;
+        const dz = this.playerPos.z - this.triggerPos.z;
+
+        const distanceXZ = Math.sqrt(dx * dx + dz * dz);
+
+        if (distanceXZ <= this.data.radius) {
+            this.hasTriggered = true;
+            endGame();
+        }
+    }
+});
 /*function endGame() {
     if (window.gameState.finished) return;
     window.gameState.finished = true;
