@@ -165,6 +165,7 @@ function createButton(position, targetSelector, room, options ={}) {
     button.setAttribute('height', options.height ?? 0.35);
     button.setAttribute('depth', options.depth ?? 0.08);
 
+    button.setAttribute('class', 'interactable');
     button.setAttribute('interactable', '');
 
     button.setAttribute('static-body', '');

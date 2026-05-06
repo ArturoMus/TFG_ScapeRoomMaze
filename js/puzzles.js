@@ -101,33 +101,47 @@ AFRAME.registerComponent('puzzle-orb-pedestal', {
         const currentRoom = this.el;
         const prevRoom = document.getElementById(this.data.prevRoomId);
 
-        const doors = lockPuzzleDoors(this.data);
+        const targets = getPuzzleDoorSelectors(this.data);
+        const puzzleID = getFirstPuzzleDoorId(this.data);
 
-        if (doors.length === 0) {
-            console.warn("No se encontró ninguna puerta para puzzle-orb-pedestal:", this.data);
+        if (!targets || !puzzleID) {
+            console.warn('[Orbe] Puzzle sin targets válidos:', this.data);
             return;
         }
 
-        const targetSelectors = getPuzzleDoorSelectors(this.data);
+        // Bloquear todas las puertas objetivo
+        getPuzzleDoorElements(this.data).forEach(doorEl => {
+            if (doorEl.components?.door) {
+                doorEl.components.door.isLocked = true;
+            }
 
+            if (doorEl.doorData) {
+                doorEl.doorData.isLocked = true;
+            }
+        });
+
+        // El orbe aparece en la habitación anterior
         if (prevRoom) {
             const orb = createOrb('0 1.6 0');
 
-            // Asociamos el orbe con el primer target como identificador de puzzle.
-            // Para varios targets, el pedestal será el que abre todos.
-            orb.setAttribute('data-puzzle-id', getPuzzleDoorIds(this.data)[0]);
+            // El orbe y el pedestal comparten este mismo puzzleID
+            orb.setAttribute('data-puzzle-id', puzzleID);
 
             prevRoom.appendChild(orb);
+
+            console.log('[Orbe] Creado en', this.data.prevRoomId, 'con puzzleID:', puzzleID);
+        } else {
+            console.warn('[Orbe] No se encontró la habitación anterior:', this.data.prevRoomId);
         }
 
-        const pedestal = createPedestal(
-            '0 0 0',
-            targetSelectors
-        );
+        // Pedestal en la habitación actual
+        const pedestal = createPedestal('0 0 0', targets, {
+            puzzleID: puzzleID
+        });
 
         currentRoom.appendChild(pedestal);
 
-        console.log("[Orbe] Puzzle creado. Abre:", targetSelectors);
+        console.log('[Pedestal] Creado en', currentRoom.id, 'abre:', targets, 'puzzleID:', puzzleID);
     }
 });
 
