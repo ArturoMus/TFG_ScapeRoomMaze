@@ -176,3 +176,105 @@ AFRAME.registerComponent('vr-loading-screen', {
         this.el.setAttribute('visible', false);
     }
 });
+
+AFRAME.registerComponent('vr-end-screen', {
+    init: function () {
+        this.createPanel();
+        this.hide();
+    },
+
+    createPanel: function () {
+        const panel = document.createElement('a-entity');
+
+        const bg = document.createElement('a-plane');
+        bg.setAttribute('width', '3');
+        bg.setAttribute('height', '1.8');
+        bg.setAttribute('material', {
+            color: '#050505',
+            opacity: 0.92,
+            transparent: true
+        });
+        panel.appendChild(bg);
+
+        this.title = document.createElement('a-text');
+        this.title.setAttribute('value', '¡Has escapado!');
+        this.title.setAttribute('align', 'center');
+        this.title.setAttribute('width', '3.2');
+        this.title.setAttribute('position', '0 0.55 0.03');
+        this.title.setAttribute('color', '#ffffff');
+        panel.appendChild(this.title);
+
+        this.timeText = document.createElement('a-text');
+        this.timeText.setAttribute('value', 'Tiempo: --:--');
+        this.timeText.setAttribute('align', 'center');
+        this.timeText.setAttribute('width', '2.8');
+        this.timeText.setAttribute('position', '0 0.18 0.03');
+        this.timeText.setAttribute('color', '#cccccc');
+        panel.appendChild(this.timeText);
+
+        const objective = document.createElement('a-text');
+        objective.setAttribute('value', 'Has encontrado la salida de la mazmorra.');
+        objective.setAttribute('align', 'center');
+        objective.setAttribute('width', '2.4');
+        objective.setAttribute('position', '0 -0.15 0.03');
+        objective.setAttribute('color', '#999999');
+        panel.appendChild(objective);
+
+        const restartButton = document.createElement('a-box');
+        restartButton.setAttribute('width', '1.55');
+        restartButton.setAttribute('height', '0.34');
+        restartButton.setAttribute('depth', '0.06');
+        restartButton.setAttribute('position', '0 -0.58 0.04');
+        restartButton.setAttribute('class', 'interactable');
+        restartButton.setAttribute('interactable', '');
+        restartButton.setAttribute('restart-game-button', '');
+        restartButton.setAttribute('material', {
+            color: '#3a5f8f'
+        });
+
+        const restartText = document.createElement('a-text');
+        restartText.setAttribute('value', 'REINICIAR');
+        restartText.setAttribute('align', 'center');
+        restartText.setAttribute('width', '2.2');
+        restartText.setAttribute('position', '0 -0.045 0.05');
+        restartText.setAttribute('color', '#ffffff');
+
+        restartButton.appendChild(restartText);
+        panel.appendChild(restartButton);
+
+        this.el.appendChild(panel);
+    },
+
+    setTime: function (formattedTime) {
+        this.timeText.setAttribute('value', `Tiempo: ${formattedTime}`);
+    },
+
+    show: function () {
+        this.el.setAttribute('visible', true);
+    },
+
+    hide: function () {
+        this.el.setAttribute('visible', false);
+    }
+});
+
+
+AFRAME.registerComponent('restart-game-button', {
+    init: function () {
+        this.el.addEventListener('mouseenter', () => {
+            this.el.setAttribute('material', 'color', '#4f7fc0');
+        });
+
+        this.el.addEventListener('mouseleave', () => {
+            this.el.setAttribute('material', 'color', '#3a5f8f');
+        });
+
+        this.el.addEventListener('click', () => {
+            this.interact();
+        });
+    },
+
+    interact: function () {
+        window.location.reload();
+    }
+});
