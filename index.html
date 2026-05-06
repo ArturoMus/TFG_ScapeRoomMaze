@@ -155,6 +155,18 @@
                     look-controls="pointerLockEnabled: true"
                     position="0 1.6 0">
 
+                    <a-entity id="desktopCursor"
+                        cursor="fuse: false; rayOrigin: entity"
+                        raycaster="objects: .interactable, .grabbable, .ray-blocker; far: 5"
+                        position="0 0 0">
+
+                    <a-ring
+                        position="0 0 -1"
+                        radius-inner="0.008"
+                        radius-outer="0.014"
+                        material="color: white; shader: flat; opacity: 0.8; transparent: true">
+                    </a-ring>
+
                     <a-entity id="end-screen"
                             vr-end-screen
                             visible="false"
