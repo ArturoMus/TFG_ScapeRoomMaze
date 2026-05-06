@@ -125,9 +125,10 @@ function endGame() {
     if (endScreen?.components['vr-end-screen']) {
         endScreen.components['vr-end-screen'].setTime(formattedTime);
 
-        placeEntityInFrontOfCamera(endScreen, 2.4);
+        placeEntityInFrontOfCamera(endScreen, 2.2);
 
         endScreen.components['vr-end-screen'].show();
+        console.log("Mostrando pantalla final VR:", formattedTime);
     }
 }
 
@@ -147,10 +148,6 @@ function placeEntityInFrontOfCamera(entity, distance = 2.2) {
         console.warn('No se pudo colocar la pantalla final delante de la cámara');
         return;
     }
-
-    // Hacemos que el panel sea hijo de la cámara.
-    // Así aparece siempre delante del jugador en VR.
-    camera.appendChild(entity);
 
     entity.setAttribute('position', `0 0 -${distance}`);
     entity.setAttribute('rotation', '0 0 0');
