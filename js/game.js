@@ -125,13 +125,6 @@ function endGame() {
 
         endScreen.components['vr-end-screen'].show();
     }
-
-    // Fallback HTML por si estás probando en navegador
-    const overlay = document.getElementById('overlay');
-    if (overlay) {
-        overlay.style.display = 'flex';
-        overlay.querySelector('h1').textContent = `¡Has ganado! Tiempo: ${formattedTime}`;
-    }
 }
 
 function formatGameTime(milliseconds) {
