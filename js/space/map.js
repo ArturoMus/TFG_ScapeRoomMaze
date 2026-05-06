@@ -1,37 +1,37 @@
-const MAP_GENERATION_CONFIG = {
-    width: 5,
-    height: 5,
-    roomCount: 14,
-    extraConnectionChance: 0.18,
-    minMainPathRooms: 7,
-    maxAttempts: 40
-};
+/* map.js
+ *
+ * Reglas de diseño:
+ * - El mapa empieza en room-0-0.
+ * - Se genera un árbol conectado de habitaciones.
+ * - La sala final es la más lejana desde el inicio.
+ * - La sala final NO tiene puzzle.
+ * - Toda sala no-final tiene puzzle.
+ * - Una sala puede tener varias puertas.
+ * - Un puzzle puede abrir una o varias puertas.
+ * - Si una sala del camino principal tiene deadends, su puzzle abre la entrada a esos deadends,
+ *   y el último puzzle del deadend abre la puerta principal bloqueada.
+ * - Si una sala no tiene deadend, su puzzle abre la siguiente puerta de progresión.
+ */
 
-const CARDINAL_DIRECTIONS = [
-    { name: 'north', dx: 0, dz: -1 },
-    { name: 'south', dx: 0, dz: 1 },
-    { name: 'east',  dx: 1, dz: 0 },
-    { name: 'west',  dx: -1, dz: 0 }
-];
 
-function coordKey(coord) {
+// ============================================================
+// Helpers de coordenadas / aleatoriedad
+// ============================================================
+
+function coordId(coord) {
     return `${coord.x}-${coord.z}`;
 }
 
-function roomIdFromCoord(coord) {
-    return `room-${coord.x}-${coord.z}`;
+function parseCoordId(id) {
+    const [x, z] = id.split('-').map(Number);
+    return { x, z };
 }
 
-function coordFromRoomId(roomId) {
-    const parts = roomId.replace('room-', '').split('-').map(Number);
-    return { x: parts[0], z: parts[1] };
+function sameCoord(a, b) {
+    return a.x === b.x && a.z === b.z;
 }
 
-function pickRandom(array) {
-    return array[Math.floor(Math.random() * array.length)];
-}
-
-function shuffle(array) {
+function shuffleArray(array) {
     const copy = [...array];
 
     for (let i = copy.length - 1; i > 0; i--) {
@@ -42,232 +42,200 @@ function shuffle(array) {
     return copy;
 }
 
-function isInsideMap(x, z, width, height) {
-    return x >= 0 && x < width && z >= 0 && z < height;
-}
-
-function getAdjacentCoords(coord, width, height) {
-    return CARDINAL_DIRECTIONS
-        .map(dir => ({ x: coord.x + dir.dx, z: coord.z + dir.dz }))
-        .filter(next => isInsideMap(next.x, next.z, width, height));
-}
-
-function createConnectedRoomSet(width, height, roomCount) {
-    const maxRooms = width * height;
-    roomCount = Math.max(2, Math.min(roomCount, maxRooms));
-
-    const selected = new Map();
-    const start = { x: 0, z: 0 };
-    selected.set(coordKey(start), start);
-
-    while (selected.size < roomCount) {
-        const frontier = [];
-        const frontierKeys = new Set();
-
-        selected.forEach(room => {
-            getAdjacentCoords(room, width, height).forEach(next => {
-                const key = coordKey(next);
-
-                if (!selected.has(key) && !frontierKeys.has(key)) {
-                    frontier.push(next);
-                    frontierKeys.add(key);
-                }
-            });
-        });
-
-        if (frontier.length === 0) break;
-
-        const nextRoom = pickRandom(frontier);
-        selected.set(coordKey(nextRoom), nextRoom);
-    }
-
-    return selected;
-}
-
-function createLayoutFromRoomSet(roomSet, width, height) {
-    const layout = Array.from({ length: height }, () => Array(width).fill(0));
-
-    roomSet.forEach(room => {
-        layout[room.z][room.x] = 1;
+function createFullLayout(width, height) {
+    return Array.from({ length: height }, () => {
+        return Array.from({ length: width }, () => 1);
     });
-
-    return layout;
 }
 
-function createRandomSpanningTree(roomSet, width, height) {
-    const selectedKeys = new Set(roomSet.keys());
-    const start = roomSet.get('0-0');
+function getGridNeighbors(coord, width, height) {
+    const candidates = [
+        { x: coord.x,     z: coord.z - 1 },
+        { x: coord.x,     z: coord.z + 1 },
+        { x: coord.x + 1, z: coord.z },
+        { x: coord.x - 1, z: coord.z }
+    ];
 
-    const visited = new Set([coordKey(start)]);
-    const stack = [start];
-    const treeConnections = new Set();
+    return candidates.filter(c => {
+        return c.x >= 0 && c.x < width && c.z >= 0 && c.z < height;
+    });
+}
 
-    const parentById = {
-        [roomIdFromCoord(start)]: null
-    };
 
-    const depthById = {
-        [roomIdFromCoord(start)]: 0
-    };
+// ============================================================
+// Generación del árbol del mapa
+// ============================================================
 
-    const discoveryOrder = [roomIdFromCoord(start)];
+function buildRandomSpanningTree(width, height, startCoord) {
+    const visited = new Set();
 
-    while (stack.length > 0) {
-        const current = stack[stack.length - 1];
-        const currentId = roomIdFromCoord(current);
+    const parentByRoom = {};
+    const childrenByRoom = {};
+    const edges = new Set();
 
-        const candidates = shuffle(getAdjacentCoords(current, width, height))
-            .filter(next => selectedKeys.has(coordKey(next)) && !visited.has(coordKey(next)));
-
-        if (candidates.length === 0) {
-            stack.pop();
-            continue;
+    function ensureChildren(id) {
+        if (!childrenByRoom[id]) {
+            childrenByRoom[id] = [];
         }
-
-        const next = candidates[0];
-        const nextKey = coordKey(next);
-        const nextId = roomIdFromCoord(next);
-
-        visited.add(nextKey);
-        stack.push(next);
-
-        treeConnections.add(edgeKeyFromCoords(current, next));
-
-        parentById[nextId] = currentId;
-        depthById[nextId] = depthById[currentId] + 1;
-        discoveryOrder.push(nextId);
     }
+
+    function visit(coord) {
+        const currentId = coordId(coord);
+
+        visited.add(currentId);
+        ensureChildren(currentId);
+
+        const neighbors = shuffleArray(getGridNeighbors(coord, width, height));
+
+        neighbors.forEach(neighbor => {
+            const neighborId = coordId(neighbor);
+
+            if (visited.has(neighborId)) return;
+
+            parentByRoom[neighborId] = currentId;
+
+            ensureChildren(currentId);
+            ensureChildren(neighborId);
+
+            childrenByRoom[currentId].push(neighborId);
+
+            edges.add(edgeKeyFromCoords(coord, neighbor));
+
+            visit(neighbor);
+        });
+    }
+
+    visit(startCoord);
 
     return {
-        treeConnections,
-        parentById,
-        depthById,
-        discoveryOrder
+        parentByRoom,
+        childrenByRoom,
+        edges
     };
 }
 
-function addExtraConnections(roomSet, width, height, baseConnections, extraConnectionChance) {
-    const selectedKeys = new Set(roomSet.keys());
-    const allowedConnections = new Set(baseConnections);
+function findFarthestPathFromStart(tree, startCoord) {
+    const startId = coordId(startCoord);
 
-    roomSet.forEach(room => {
-        [
-            { x: room.x + 1, z: room.z },
-            { x: room.x, z: room.z + 1 }
-        ].forEach(next => {
-            if (!isInsideMap(next.x, next.z, width, height)) return;
-            if (!selectedKeys.has(coordKey(next))) return;
+    const queue = [startId];
+    const visited = new Set([startId]);
 
-            const edgeKey = edgeKeyFromCoords(room, next);
-            if (allowedConnections.has(edgeKey)) return;
+    const parent = {};
+    const distance = {};
 
-            if (Math.random() < extraConnectionChance) {
-                allowedConnections.add(edgeKey);
-            }
+    distance[startId] = 0;
+
+    let farthestId = startId;
+
+    while (queue.length > 0) {
+        const current = queue.shift();
+
+        if (distance[current] > distance[farthestId]) {
+            farthestId = current;
+        }
+
+        const children = tree.childrenByRoom[current] || [];
+
+        children.forEach(child => {
+            if (visited.has(child)) return;
+
+            visited.add(child);
+            parent[child] = current;
+            distance[child] = distance[current] + 1;
+
+            queue.push(child);
         });
-    });
-
-    return allowedConnections;
-}
-
-function getFarthestRoomId(depthById) {
-    let farthestId = null;
-    let farthestDepth = -1;
-
-    Object.entries(depthById).forEach(([roomId, depth]) => {
-        if (depth > farthestDepth) {
-            farthestId = roomId;
-            farthestDepth = depth;
-        }
-    });
-
-    return farthestId;
-}
-
-function buildPathCoordsToStart(goalRoomId, parentById) {
-    const path = [];
-    let currentId = goalRoomId;
-
-    while (currentId) {
-        path.push(coordFromRoomId(currentId));
-        currentId = parentById[currentId];
     }
 
-    return path.reverse();
+    const pathIds = [];
+    let current = farthestId;
+
+    while (current) {
+        pathIds.push(current);
+        current = parent[current];
+    }
+
+    pathIds.reverse();
+
+    return pathIds.map(parseCoordId);
 }
 
-function generateRandomDungeon(options = {}) {
-    const config = {
-        ...MAP_GENERATION_CONFIG,
-        ...options
+function getRandomBetaMazePlan(config = {}) {
+    const width = config.width ?? 3;
+    const height = config.height ?? 3;
+
+    const startCoord = config.start ?? { x: 0, z: 0 };
+
+    const layout = createFullLayout(width, height);
+
+    const tree = buildRandomSpanningTree(width, height, startCoord);
+
+    const mainPathCoords = findFarthestPathFromStart(tree, startCoord);
+    const finalCoord = mainPathCoords[mainPathCoords.length - 1];
+
+    return {
+        layout,
+        width,
+        height,
+        startCoord,
+        finalCoord,
+        mainPathCoords,
+        allowedConnections: tree.edges,
+        tree
     };
-
-    let bestDungeon = null;
-
-    for (let attempt = 0; attempt < config.maxAttempts; attempt++) {
-        const roomSet = createConnectedRoomSet(
-            config.width,
-            config.height,
-            config.roomCount
-        );
-
-        const tree = createRandomSpanningTree(roomSet, config.width, config.height);
-        const goalRoomId = getFarthestRoomId(tree.depthById);
-        const mainPathCoords = buildPathCoordsToStart(goalRoomId, tree.parentById);
-
-        const allowedConnections = addExtraConnections(
-            roomSet,
-            config.width,
-            config.height,
-            tree.treeConnections,
-            config.extraConnectionChance
-        );
-
-        const dungeon = {
-            layout: createLayoutFromRoomSet(roomSet, config.width, config.height),
-            allowedConnections,
-            treeConnections: tree.treeConnections,
-            parentById: tree.parentById,
-            depthById: tree.depthById,
-            discoveryOrder: tree.discoveryOrder,
-            mainPathCoords,
-            goalRoomId
-        };
-
-        if (!bestDungeon || mainPathCoords.length > bestDungeon.mainPathCoords.length) {
-            bestDungeon = dungeon;
-        }
-
-        if (mainPathCoords.length >= config.minMainPathRooms) {
-            return dungeon;
-        }
-    }
-
-    return bestDungeon;
 }
+
+
+// ============================================================
+// Componente principal del mapa
+// ============================================================
 
 AFRAME.registerComponent('map', {
     init: function () {
+        const progressionPlan = getRandomBetaMazePlan({
+            width: 3,
+            height: 3,
+            start: { x: 0, z: 0 }
+        });
+
         const roomSize = 10;
 
-        const dungeon = generateRandomDungeon();
-        const rooms = createGraph(dungeon.layout, dungeon.allowedConnections);
+        const rooms = createGraph(
+            progressionPlan.layout,
+            progressionPlan.allowedConnections
+        );
 
         window.rooms = rooms;
         window.roomSize = roomSize;
-        window.dungeon = dungeon;
+        window.progressionPlan = progressionPlan;
+        window.mainPathCoords = progressionPlan.mainPathCoords;
 
         renderMap(rooms, roomSize);
-
-        assignPuzzlesRandom(rooms, dungeon, roomSize);
-        createEndRoomTrigger(rooms, dungeon.mainPathCoords, roomSize);
 
         rebuildGeneratedNavMesh(rooms, roomSize);
         window.rebuildNavMesh = () => rebuildGeneratedNavMesh(rooms, roomSize);
 
-        console.log('Dungeon generada:', dungeon);
+        assignProgressionPuzzles(rooms, progressionPlan);
+
+        createEndRoomTrigger?.(
+            rooms,
+            progressionPlan.mainPathCoords,
+            roomSize
+        );
+
+        console.log("Mapa generado");
+        console.log("Inicio:", progressionPlan.startCoord);
+        console.log("Final:", progressionPlan.finalCoord);
+        console.log("Camino principal:", progressionPlan.mainPathCoords);
+        console.log("Árbol:", progressionPlan.tree);
+        console.log("Conexiones:", [...progressionPlan.allowedConnections]);
     }
 });
+
+
+// ============================================================
+// Render de salas y puertas
+// ============================================================
 
 function renderMap(rooms, roomSize) {
     const scene = document.querySelector('a-scene');
@@ -281,6 +249,7 @@ function renderMap(rooms, roomSize) {
         );
 
         scene.appendChild(entity);
+
         room.el = entity;
     });
 
@@ -288,218 +257,359 @@ function renderMap(rooms, roomSize) {
         for (let dir in room.doors) {
             const door = room.doors[dir];
 
-            if (door.rendered) continue;
+            if (!door.rendered) {
+                const doorPivot = createDoor(room.el, door.direction, roomSize);
 
-            const doorPivot = createDoor(room.el, door.direction, roomSize);
-            doorPivot.setAttribute('id', `door-pivot-${room.id}-${dir}`);
+                door.el = doorPivot;
+                door.el.doorData = door;
+                door.rendered = true;
 
-            door.el = doorPivot;
-            door.el.doorData = door;
-            door.rendered = true;
+                doorPivot.setAttribute('id', `door-pivot-${room.id}-${dir}`);
+            }
         }
     });
 }
 
-function getDoorBetween(roomA, roomB) {
-    for (let dir in roomA.doors) {
-        if (roomA.neighbors[dir] === roomB) {
-            return roomA.doors[dir];
+
+// ============================================================
+// Helpers de puertas
+// ============================================================
+
+function getDirectionBetween(a, b) {
+    if (b.x === a.x && b.z === a.z - 1) return 'north';
+    if (b.x === a.x && b.z === a.z + 1) return 'south';
+    if (b.x === a.x + 1 && b.z === a.z) return 'east';
+    if (b.x === a.x - 1 && b.z === a.z) return 'west';
+
+    return null;
+}
+
+function getDoorBetweenCoords(rooms, a, b) {
+    const room = rooms[`room-${a.x}-${a.z}`];
+
+    if (!room) return null;
+
+    const dir = getDirectionBetween(a, b);
+
+    if (!dir) return null;
+
+    return room.doors[dir] || null;
+}
+
+function ensureDoorId(door) {
+    if (!door || !door.el) return null;
+
+    if (!door.el.id) {
+        const idA = door.roomA.id;
+        const idB = door.roomB.id;
+        door.el.setAttribute('id', `door-${idA}-${idB}`);
+    }
+
+    return door.el.id;
+}
+
+function lockDoorForPuzzle(door) {
+    if (!door) return;
+
+    door.hasPuzzle = true;
+    door.isLocked = true;
+    door.isOpen = false;
+
+    if (door.el?.components?.door) {
+        door.el.components.door.isLocked = true;
+        door.el.components.door.isOpen = false;
+    }
+
+    if (door.el?.doorData) {
+        door.el.doorData.isLocked = true;
+        door.el.doorData.isOpen = false;
+    }
+}
+
+
+// ============================================================
+// Lógica de progresión y puzzles
+// ============================================================
+
+function isRoomOnMainPath(roomShortId, mainPathCoords) {
+    return mainPathCoords.some(coord => coordId(coord) === roomShortId);
+}
+
+function getMainPathIndex(roomShortId, mainPathCoords) {
+    return mainPathCoords.findIndex(coord => coordId(coord) === roomShortId);
+}
+
+function getMainChildId(roomShortId, mainPathCoords) {
+    const index = getMainPathIndex(roomShortId, mainPathCoords);
+
+    if (index === -1) return null;
+    if (index >= mainPathCoords.length - 1) return null;
+
+    return coordId(mainPathCoords[index + 1]);
+}
+
+function getBranchRootInfo(roomShortId, progressionPlan) {
+    const {
+        tree,
+        mainPathCoords
+    } = progressionPlan;
+
+    let current = roomShortId;
+
+    while (current) {
+        const parent = tree.parentByRoom[current];
+
+        if (!parent) return null;
+
+        const parentIsMain = isRoomOnMainPath(parent, mainPathCoords);
+        const currentIsMain = isRoomOnMainPath(current, mainPathCoords);
+
+        if (parentIsMain && !currentIsMain) {
+            return {
+                rootId: parent,
+                firstBranchRoomId: current
+            };
         }
+
+        current = parent;
     }
 
     return null;
 }
 
-function getUniqueDoors(rooms) {
-    const usedDoors = new Set();
-    const uniqueDoors = [];
+function getMainGateDoorForBranchRoom(rooms, roomShortId, progressionPlan) {
+    const branchInfo = getBranchRootInfo(roomShortId, progressionPlan);
 
-    Object.values(rooms).forEach(room => {
-        Object.values(room.doors).forEach(door => {
-            if (usedDoors.has(door)) return;
+    if (!branchInfo) return null;
 
-            usedDoors.add(door);
-            uniqueDoors.push(door);
+    const mainChildId = getMainChildId(
+        branchInfo.rootId,
+        progressionPlan.mainPathCoords
+    );
+
+    if (!mainChildId) return null;
+
+    return getDoorBetweenCoords(
+        rooms,
+        parseCoordId(branchInfo.rootId),
+        parseCoordId(mainChildId)
+    );
+}
+
+function getDoorToChild(rooms, parentShortId, childShortId) {
+    return getDoorBetweenCoords(
+        rooms,
+        parseCoordId(parentShortId),
+        parseCoordId(childShortId)
+    );
+}
+
+function getPuzzleTargetDoorsForRoom(rooms, room, progressionPlan) {
+    const {
+        tree,
+        mainPathCoords,
+        finalCoord
+    } = progressionPlan;
+
+    const roomShortId = room.id.replace('room-', '');
+    const finalShortId = coordId(finalCoord);
+
+    if (roomShortId === finalShortId) {
+        return [];
+    }
+
+    const children = tree.childrenByRoom[roomShortId] || [];
+    const isMain = isRoomOnMainPath(roomShortId, mainPathCoords);
+
+    const targetDoors = [];
+
+    if (isMain) {
+        const mainChildId = getMainChildId(roomShortId, mainPathCoords);
+
+        const branchChildren = children.filter(childId => {
+            return childId !== mainChildId;
         });
-    });
 
-    return uniqueDoors;
-}
+        if (branchChildren.length > 0) {
+            // Si hay deadends desde esta habitación, el puzzle abre las puertas hacia esos deadends.
+            // La puerta principal queda bloqueada y la abrirá el último puzzle del deadend.
+            branchChildren.forEach(childId => {
+                const door = getDoorToChild(rooms, roomShortId, childId);
 
-function buildPuzzleTargetMap(rooms, dungeon) {
-    const targetMap = new Map();
-    Object.values(rooms).forEach(room => targetMap.set(room.id, new Set()));
+                if (door) {
+                    targetDoors.push(door);
+                }
+            });
 
-    const assignedDoors = new Set();
+            if (mainChildId) {
+                const mainGateDoor = getDoorToChild(rooms, roomShortId, mainChildId);
 
-    Object.entries(dungeon.parentById).forEach(([childId, parentId]) => {
-        if (!parentId) return;
+                if (mainGateDoor) {
+                    lockDoorForPuzzle(mainGateDoor);
+                }
+            }
+        } else if (mainChildId) {
+            // Si no hay deadend, el puzzle abre la siguiente puerta del camino principal.
+            const door = getDoorToChild(rooms, roomShortId, mainChildId);
 
-        const parentRoom = rooms[parentId];
-        const childRoom = rooms[childId];
-        if (!parentRoom || !childRoom) return;
-
-        const door = getDoorBetween(parentRoom, childRoom);
-        if (!door) return;
-
-        targetMap.get(parentRoom.id).add(door);
-        assignedDoors.add(door);
-    });
-
-    getUniqueDoors(rooms).forEach(door => {
-        if (assignedDoors.has(door)) return;
-
-        const depthA = dungeon.depthById[door.roomA.id] ?? 0;
-        const depthB = dungeon.depthById[door.roomB.id] ?? 0;
-
-        const owner = depthA <= depthB ? door.roomA : door.roomB;
-
-        targetMap.get(owner.id).add(door);
-        assignedDoors.add(door);
-    });
-
-    Object.values(rooms).forEach(room => {
-        const targets = targetMap.get(room.id);
-
-        if (targets.size > 0) return;
-
-        const parentId = dungeon.parentById[room.id];
-        const parentRoom = parentId ? rooms[parentId] : null;
-
-        const fallbackDoor = parentRoom
-            ? getDoorBetween(room, parentRoom)
-            : Object.values(room.doors)[0];
-
-        if (fallbackDoor) {
-            targets.add(fallbackDoor);
+            if (door) {
+                targetDoors.push(door);
+            }
         }
-    });
+    } else {
+        // Sala de rama/deadend.
+        // Si tiene hijos, su puzzle abre esas puertas.
+        if (children.length > 0) {
+            children.forEach(childId => {
+                const door = getDoorToChild(rooms, roomShortId, childId);
 
-    return targetMap;
-}
+                if (door) {
+                    targetDoors.push(door);
+                }
+            });
+        } else {
+            // Si es hoja/deadend, su puzzle abre la puerta principal del root de esa rama.
+            const mainGateDoor = getMainGateDoorForBranchRoom(
+                rooms,
+                roomShortId,
+                progressionPlan
+            );
 
-function getRandomPuzzleFloorPoint(roomSize, margin = 2) {
-    return {
-        x: -roomSize / 2 + margin + Math.random() * (roomSize - margin * 2),
-        z: -roomSize / 2 + margin + Math.random() * (roomSize - margin * 2)
-    };
-}
-
-function selectPuzzleType(room, previousRoom, orderIndex) {
-    if (!previousRoom) {
-        return orderIndex % 2 === 0 ? 'button' : 'pressure';
+            if (mainGateDoor) {
+                targetDoors.push(mainGateDoor);
+            }
+        }
     }
 
-    const cycle = [
-        'button',
-        'orb-pedestal',
-        'pressure',
-        'button',
-        'orb-pedestal',
-        'pressure'
-    ];
-
-    return cycle[orderIndex % cycle.length];
+    return targetDoors;
 }
 
-function attachButtonPuzzle(room, targetDoorIds, roomSize) {
-    const button = createCamouflagedWallButton(room.el, targetDoorIds, roomSize);
-    room.el.appendChild(button);
+function getPreviousRoomIdForOrb(room, progressionPlan) {
+    const roomShortId = room.id.replace('room-', '');
+    const parentId = progressionPlan.tree.parentByRoom[roomShortId];
+
+    if (!parentId) return null;
+
+    return `room-${parentId}`;
 }
 
-function attachPressurePlatePuzzle(room, targetDoorIds, roomSize) {
-    const puzzle = createCamouflagedPressurePlate(room.el, targetDoorIds, roomSize);
+function choosePuzzleTypeForRoom(room, progressionPlan, puzzleIndex) {
+    const prevRoomId = getPreviousRoomIdForOrb(room, progressionPlan);
 
-    room.el.appendChild(puzzle.plate);
-    room.el.appendChild(createTestBox(puzzle.boxPosition));
-}
+    const types = ['button', 'pressure', 'memory', 'orb'];
+    let type = types[puzzleIndex % types.length];
 
-function attachOrbPedestalPuzzle(room, previousRoom, targetDoorIds, roomSize) {
-    if (!previousRoom) {
-        attachButtonPuzzle(room, targetDoorIds, roomSize);
-        return;
+    if (type === 'orb' && !prevRoomId) {
+        type = 'button';
     }
 
-    const targetSelector = targetDoorIds
-        .map(id => id.startsWith('#') ? id : `#${id}`)
-        .join(',');
-
-    const pedestalPos = getRandomPuzzleFloorPoint(roomSize, 2.2);
-    const pedestal = createPedestal(`${pedestalPos.x} 0.5 ${pedestalPos.z}`, targetSelector);
-
-    pedestal.setAttribute('id', `${room.id}-pedestal`);
-    room.el.appendChild(pedestal);
-
-    const orbPos = getRandomPuzzleFloorPoint(roomSize, 2.2);
-    const orb = createOrb(`${orbPos.x} 1.2 ${orbPos.z}`);
-
-    orb.setAttribute('id', `${room.id}-orb-key`);
-    orb.setAttribute('data-puzzle-id', targetSelector);
-
-    previousRoom.el.appendChild(orb);
-
-    console.log(`[Orbe] ${room.id}: orbe colocado en ${previousRoom.id}`);
+    return type;
 }
 
-function assignPuzzlesRandom(rooms, dungeon, roomSize) {
-    const targetMap = buildPuzzleTargetMap(rooms, dungeon);
+function placePuzzleInRoom({ room, type, targetDoorIds, prevRoomId }) {
+    const targetString = targetDoorIds.join(',');
 
-    const orderedRooms = Object.values(rooms).sort((a, b) => {
-        const da = dungeon.depthById[a.id] ?? 0;
-        const db = dungeon.depthById[b.id] ?? 0;
+    if (type === 'button') {
+        room.el.setAttribute('puzzle-button-door', {
+            doorIds: targetString
+        });
+    }
 
-        return da - db || a.id.localeCompare(b.id);
-    });
+    else if (type === 'pressure') {
+        room.el.setAttribute('puzzle-pressure-plate', {
+            doorIds: targetString
+        });
+    }
 
-    orderedRooms.forEach((room, index) => {
-        const targetDoors = [...targetMap.get(room.id)];
+    else if (type === 'memory') {
+        room.el.setAttribute('puzzle-memory-match', {
+            doorIds: targetString,
+            length: 4,
+            showSpeed: 650
+        });
+    }
 
-        const targetDoorIds = targetDoors
-            .map(door => door.el?.id)
-            .filter(Boolean);
+    else if (type === 'orb') {
+        if (!prevRoomId) {
+            room.el.setAttribute('puzzle-button-door', {
+                doorIds: targetString
+            });
 
-        if (targetDoorIds.length === 0) {
-            console.warn(`[Puzzle] ${room.id} no tiene puertas objetivo.`);
             return;
         }
 
-        targetDoors.forEach(door => {
-            door.hasPuzzle = true;
+        room.el.setAttribute('puzzle-orb-pedestal', {
+            doorIds: targetString,
+            prevRoomId: prevRoomId
         });
-
-        const previousRoomId = dungeon.parentById[room.id];
-        const previousRoom = previousRoomId ? rooms[previousRoomId] : null;
-
-        const type = selectPuzzleType(room, previousRoom, index);
-
-        room.puzzle = {
-            type,
-            targetDoorIds,
-            previousRoomId: previousRoom?.id || null
-        };
-
-        room.puzzleDoors = targetDoors;
-
-        if (type === 'button') {
-            attachButtonPuzzle(room, targetDoorIds, roomSize);
-        } else if (type === 'pressure') {
-            attachPressurePlatePuzzle(room, targetDoorIds, roomSize);
-        } else if (type === 'orb-pedestal') {
-            attachOrbPedestalPuzzle(room, previousRoom, targetDoorIds, roomSize);
-        }
-
-        console.log(
-            `[Puzzle] ${room.id} (${type}) abre ${targetDoorIds.join(', ')}`
-        );
-    });
-
-    const goalRoom = rooms[dungeon.goalRoomId];
-
-    if (goalRoom) {
-        goalRoom.isGoal = true;
-        console.log('Sala final:', goalRoom.id);
     }
 }
+
+function assignProgressionPuzzles(rooms, progressionPlan) {
+    const finalShortId = coordId(progressionPlan.finalCoord);
+    let puzzleIndex = 0;
+
+    Object.values(rooms).forEach(room => {
+        if (!room || !room.el) return;
+
+        const roomShortId = room.id.replace('room-', '');
+
+        if (roomShortId === finalShortId) {
+            room.isGoal = true;
+            console.log("Sala final sin puzzle:", room.id);
+            return;
+        }
+
+        const targetDoors = getPuzzleTargetDoorsForRoom(
+            rooms,
+            room,
+            progressionPlan
+        );
+
+        const targetDoorIds = [];
+
+        targetDoors.forEach(door => {
+            const doorId = ensureDoorId(door);
+
+            if (!doorId) return;
+
+            lockDoorForPuzzle(door);
+            targetDoorIds.push(doorId);
+        });
+
+        if (targetDoorIds.length === 0) {
+            console.warn("Habitación sin puertas objetivo para puzzle:", room.id);
+            return;
+        }
+
+        const type = choosePuzzleTypeForRoom(
+            room,
+            progressionPlan,
+            puzzleIndex
+        );
+
+        const prevRoomId = getPreviousRoomIdForOrb(room, progressionPlan);
+
+        placePuzzleInRoom({
+            room,
+            type,
+            targetDoorIds,
+            prevRoomId
+        });
+
+        console.log(
+            `[Puzzle] ${room.id} tipo ${type} abre:`,
+            targetDoorIds
+        );
+
+        puzzleIndex++;
+    });
+}
+
+
+// ============================================================
+// Trigger final
+// ============================================================
 
 function createEndRoomTrigger(rooms, pathCoords, roomSize) {
     const lastCoord = pathCoords[pathCoords.length - 1];
@@ -516,12 +626,14 @@ function createEndRoomTrigger(rooms, pathCoords, roomSize) {
     trigger.setAttribute('radius', '2.5');
     trigger.setAttribute('height', '0.08');
     trigger.setAttribute('position', '0 0.05 0');
-
     trigger.setAttribute('material', {
         color: '#00ffcc',
         opacity: 0.18,
         transparent: true
     });
+
+    // Debug:
+    // trigger.setAttribute('visible', 'true');
 
     trigger.setAttribute('visible', 'false');
 
@@ -534,20 +646,23 @@ function createEndRoomTrigger(rooms, pathCoords, roomSize) {
     console.log('Trigger final creado en', lastRoomId);
 }
 
+
+// ============================================================
+// Navmesh procedural
+// ============================================================
+
 function rebuildGeneratedNavMesh(rooms, roomSize) {
     const scene = document.querySelector('a-scene');
 
     const oldNavMesh = document.querySelector('#generated-navmesh');
-
     if (oldNavMesh) {
         oldNavMesh.parentNode.removeChild(oldNavMesh);
     }
 
     const NAVMESH_DEBUG = true;
 
-    // true = para probar, todas las puertas dejan pasar.
-    // false = solo deja pasar por puertas abiertas.
-    const ALLOW_CLOSED_DOORS = true;
+    // En beta real debería ser false para que las puertas cerradas bloqueen.
+    const ALLOW_CLOSED_DOORS = false;
 
     const playerMargin = 0.45;
     const doorWidth = 1.25;
@@ -583,6 +698,7 @@ function rebuildGeneratedNavMesh(rooms, roomSize) {
         return rects.some(rect => rectContainsPoint(rect, x, z));
     }
 
+    // Zonas de salas
     Object.values(rooms).forEach(room => {
         const cx = room.x * roomSize;
         const cz = room.z * roomSize;
@@ -595,6 +711,7 @@ function rebuildGeneratedNavMesh(rooms, roomSize) {
         );
     });
 
+    // Conectores de puertas
     const usedDoors = new Set();
 
     Object.values(rooms).forEach(room => {
@@ -683,7 +800,6 @@ function rebuildGeneratedNavMesh(rooms, roomSize) {
         const index = vertices.length / 3;
         vertices.push(x, y, z);
         vertexMap.set(key, index);
-
         return index;
     }
 
