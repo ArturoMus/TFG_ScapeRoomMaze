@@ -397,19 +397,25 @@ function createOrb(position) {
 //                                   FUNCIONES DE LOS PEDESTALES
 // ---------------------------------------------------------------------------------
 
-function createPedestal(position, doorSelector) {
+function createPedestal(position, doorSelector, options = {}) {
 
     const base = document.createElement('a-cylinder');
+
     base.setAttribute('position', position);
     base.setAttribute('radius', '0.3');
     base.setAttribute('height', '1');
     base.setAttribute('color', '#444');
     base.setAttribute('static-body', '');
+
     base.setAttribute('class', 'interactable');
     base.setAttribute('interactable', '');
+
+    const targets = normalizeTargetSelectors(doorSelector);
+    const puzzleID = options.puzzleID || getFirstTargetId(doorSelector);
+
     base.setAttribute('pedestal', {
-        targets: doorSelector,
-        puzzleID: Array.isArray(doorSelector) ? doorSelector[0] : doorSelector
+        targets: targets,
+        puzzleID: puzzleID
     });
 
     return base;
