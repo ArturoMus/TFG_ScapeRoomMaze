@@ -3,8 +3,14 @@ AFRAME.registerComponent('button', {
     schema: {
         event: { type: 'string', default: 'activate' },
         target: { type: 'selector' },
+        targets: { type: 'string', default: '' },
         // Esto sirve para que el botón se pueda mover en la dirección correcta, es decir, para que se meta bien en la pared
         pressOffset: { type: 'vec3', default: { x: 0, y: 0, z: -0.05 } }
+    },
+
+    interact: function () {
+        if (this.isPressed) return;
+        this.press();
     },
 
     init: function () {
@@ -63,12 +69,35 @@ AFRAME.registerComponent('button', {
         });*/
 
         // Evento
+        this.emitToTargets();
+        // Sonido
+        this.el.components.sound.playSound();
+    },
+
+    emitToTargets: function () {
+        if (this.data.targets) {
+            const selectors = this.data.targets
+                .split(',')
+                .map(s => s.trim())
+                .filter(Boolean);
+
+            selectors.forEach(selector => {
+                const targetEl = document.querySelector(selector);
+
+                if (targetEl) {
+                    targetEl.emit(this.data.event);
+                } else {
+                    console.warn("Target no encontrado:", selector);
+                }
+            });
+
+            return;
+        }
+
+        // Fallback antiguo: una sola puerta
         if (this.data.target) {
             this.data.target.emit(this.data.event);
         }
-
-        // Sonido
-        this.el.components.sound.playSound();
     },
 
     /*interact: function () {

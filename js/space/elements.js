@@ -69,6 +69,21 @@ function getObjectSpawnAwayFromPoint(origin, roomSize, options = {}) {
 
 // ---------------------------------------------------------------------------------
 
+function normalizeTargetSelectors(targetSelectors) {
+    if (!Array.isArray(targetSelectors)) {
+        targetSelectors = [targetSelectors];
+    }
+
+    return targetSelectors
+        .filter(Boolean)
+        .map(target => {
+            if (typeof target !== 'string') return null;
+            return target.startsWith('#') ? target : `#${target}`;
+        })
+        .filter(Boolean)
+        .join(',');
+}
+
 // ---------------------------------------------------------------------------------
 //                                   FUNCIONES DE LAS PUERTAS
 // ---------------------------------------------------------------------------------
@@ -167,7 +182,7 @@ function createButton(position, targetSelector, room, options ={}) {
     // Configuramos el botón para que dispare el evento a la puerta que encontramos
     button.setAttribute('button', {
         event: 'openDoor',
-        target: '#' + targetSelector,
+        targets: normalizeTargetSelectors(targetSelector),
         pressOffset: options.pressOffset || { x: 0, y: 0, z: -0.05 }
     });
     
@@ -392,8 +407,8 @@ function createPedestal(position, doorSelector) {
     base.setAttribute('class', 'interactable');
     base.setAttribute('interactable', '');
     base.setAttribute('pedestal', {
-        target: '#' + doorSelector,
-        puzzleID: doorSelector
+        targets: targetSelectors,
+        puzzleID: Array.isArray(doorSelector) ? doorSelector[0] : doorSelector
     });
 
     return base;
@@ -425,7 +440,7 @@ function createPressurePlate(position, doorSelector, options={}) {
     //plate.setAttribute('static-body', '');
     
     plate.setAttribute('pressure-plate', {
-        target: '#' + doorSelector,
+        target: normalizeTargetSelectors(doorSelector),
         pressDepth: options.pressDepth ?? 0.025
     });
     return plate;
