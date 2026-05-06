@@ -53,6 +53,39 @@ AFRAME.registerComponent('door', {
         this.toggleDoor();
     },
 
+    // MIRAAAAAAAR
+    disableDoorPhysics: function () {
+        const blocker = this.el.querySelector('.door-blocker');
+
+        if (!blocker) return;
+
+        if (blocker.hasAttribute('static-body')) {
+            blocker.removeAttribute('static-body');
+        }
+
+        if (blocker.body) {
+            blocker.body.collisionResponse = false;
+        }
+
+        console.log("Física de puerta desactivada");
+    },
+
+    enableDoorPhysics: function () {
+        const blocker = this.el.querySelector('.door-blocker');
+
+        if (!blocker) return;
+
+        if (!blocker.hasAttribute('static-body')) {
+            blocker.setAttribute('static-body', '');
+        }
+
+        if (blocker.body) {
+            blocker.body.collisionResponse = true;
+        }
+
+        console.log("Física de puerta activada");
+    },
+
     toggleDoor: function () {
         if (this.isOpen) return;
 

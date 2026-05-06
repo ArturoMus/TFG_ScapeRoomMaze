@@ -78,13 +78,25 @@ AFRAME.registerComponent('vr-grabber', {
         const intersections = raycaster.intersections;
         if (!intersections || intersections.length === 0) return;
 
-        const hit = intersections.find(i => {
-            return i.object && i.object.el && i.object.el.matches(this.data.objects);
-        });
 
-        if (!hit) return;
+        // El primer impacto del raycaster es lo que realmente estamos tocando.
+        // Si lo primero que toca es una pared/puerta, no podemos coger lo de detrás.
+        const firstHit = intersections[0];
 
-        const target = hit.object.el;
+        if (!firstHit || !firstHit.object || !firstHit.object.el) return;
+
+        const firstEl = firstHit.object.el;
+
+        if (firstEl.classList.contains('ray-blocker')) {
+            console.log("Raycast bloqueado por pared/puerta");
+            return;
+        }
+
+        if (!firstEl.matches(this.data.objects)) {
+            return;
+        }
+
+        const target = firstEl;
 
         if (target.components.orb) {
             this.heldEl = target;

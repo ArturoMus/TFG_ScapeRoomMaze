@@ -93,7 +93,8 @@ function createDoor(room, direction, roomSize) {
         cast: true,
         receive: true
     });
-    //door.setAttribute('static-body', '');
+    door.setAttribute('static-body', '');
+    door.setAttribute('class', 'interactable ray-blocker door-blocker');
 
     door.setAttribute('position', '0 1 0');
 

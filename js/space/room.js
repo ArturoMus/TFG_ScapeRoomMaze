@@ -54,6 +54,7 @@ function createRoomStructure(room, roomSize, neighbors) {
     floor.setAttribute('rotation', '-90 0 0');
     floor.setAttribute('width', roomSize);
     floor.setAttribute('height', roomSize);
+    floor.setAttribute('class', 'ray-blocker');
     floor.setAttribute('static-body', {
         friction: 1,
         restitution: 0
@@ -77,6 +78,7 @@ function createRoomStructure(room, roomSize, neighbors) {
     ceiling.setAttribute('width', roomSize);
     ceiling.setAttribute('height', roomSize);
     ceiling.setAttribute('static-body', '');
+    ceiling.setAttribute('class', 'ray-blocker');
     ceiling.setAttribute('material', {
         src: '#wallTex',
         //normalMap: '#wallNormal',
@@ -126,6 +128,7 @@ function createWall(position, size) {
     wall.setAttribute('height', h);
     wall.setAttribute('depth', d);
     wall.setAttribute('static-body', '');
+    wall.setAttribute('class', 'ray-blocker');
     wall.setAttribute('material', {
         src: '#wallTex',
         //normalMap: '#wallNormal',
