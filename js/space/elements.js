@@ -173,6 +173,8 @@ function createButton(position, targetSelector, room, options ={}) {
     button.setAttribute('material', options.material || {
         src: '#wallTex',
         repeat: '0.5 0.5',
+        emissive: '#ffffff',
+        emissiveIntensity: 0.3
     });
 
     button.setAttribute('shadow', {
@@ -253,6 +255,8 @@ function createCamouflagedWallButton(room, targetSelector, roomSize = 10) {
     const material = {
         src: '#wallTex',
         repeat: '0.45 0.45',
+        emissive: '#9b9b9b',
+        emissiveIntensity: 0.005
     };
 
     let position;
