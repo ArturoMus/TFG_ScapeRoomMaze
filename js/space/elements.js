@@ -168,7 +168,6 @@ function createButton(position, targetSelector, room, options ={}) {
     button.setAttribute('class', 'interactable');
     button.setAttribute('interactable', '');
 
-    button.setAttribute('static-body', '');
     
     button.setAttribute('material', options.material || {
         src: '#wallTex',
@@ -211,7 +210,6 @@ function createButtonWithHitbox(position, targetSelector, room) {
     hitbox.setAttribute('width', '0.6');
 
     hitbox.setAttribute('visible', false);
-    hitbox.setAttribute('static-body', '');
     
     // Configuramos el botón para que dispare el evento a la puerta que encontramos
     hitbox.setAttribute('button', {
