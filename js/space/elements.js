@@ -177,10 +177,6 @@ function createButton(position, targetSelector, room, options ={}) {
         emissiveIntensity: 0.3
     });
 
-    button.setAttribute('shadow', {
-        cast: true,
-        receive: true
-    });
 
     // Configuramos el botón para que dispare el evento a la puerta que encontramos
     button.setAttribute('button', {
@@ -441,11 +437,6 @@ function createPressurePlate(position, doorSelector, options={}) {
     plate.setAttribute('material', options.material || {
         src: '#floorTex',
         repeat: '0.6 0.6',
-    });
-
-    plate.setAttribute('shadow', {
-        cast: true,
-        receive: true
     });
 
     //plate.setAttribute('static-body', '');
