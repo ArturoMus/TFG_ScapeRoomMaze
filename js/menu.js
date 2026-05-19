@@ -22,7 +22,7 @@ AFRAME.registerComponent('main-menu', {
         panel.appendChild(background);
 
         const title = document.createElement('a-text');
-        title.setAttribute('value', 'TITULO DE PRUEBA');
+        title.setAttribute('value', 'EL LABERINTO DEL MAGO');
         title.setAttribute('align', 'center');
         title.setAttribute('width', '3.8');
         title.setAttribute('position', '0 0.55 0.02');
@@ -30,7 +30,7 @@ AFRAME.registerComponent('main-menu', {
         panel.appendChild(title);
 
         const subtitle = document.createElement('a-text');
-        subtitle.setAttribute('value', 'Explora la mazmorra y encuentra la salida.');
+        subtitle.setAttribute('value', 'Explora la mazmorra, resuelve puzzles y encuentra la salida.');
         subtitle.setAttribute('align', 'center');
         subtitle.setAttribute('width', '2.4');
         subtitle.setAttribute('position', '0 0.22 0.02');
@@ -49,7 +49,7 @@ AFRAME.registerComponent('main-menu', {
         panel.appendChild(nameBox);
 
         const nameText = document.createElement('a-text');
-        nameText.setAttribute('value', 'Nombre: Explorador');
+        nameText.setAttribute('value', 'Buena suerte explorador');
         nameText.setAttribute('align', 'center');
         nameText.setAttribute('width', '2.2');
         nameText.setAttribute('position', '0 -0.13 0.04');
@@ -213,7 +213,7 @@ AFRAME.registerComponent('vr-end-screen', {
         panel.appendChild(this.timeText);
 
         const objective = document.createElement('a-text');
-        objective.setAttribute('value', 'Has encontrado la salida de la mazmorra.');
+        objective.setAttribute('value', 'Has encontrado la salida de la mazmorra, enhorabuena explorador!');
         objective.setAttribute('align', 'center');
         objective.setAttribute('width', '2.4');
         objective.setAttribute('position', '0 -0.15 0.03');

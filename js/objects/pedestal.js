@@ -4,6 +4,7 @@ AFRAME.registerComponent('pedestal', {
     schema: {
         // Revisar si es mejor pasar el ID o el selector completo
         target: { type: 'selector' },
+        targets: { type: 'string', default: '' },
         puzzleID: { type: 'string' }
     },
 
@@ -32,6 +33,31 @@ AFRAME.registerComponent('pedestal', {
         if (body.velocity.y > -0.5) return;
 
         this.activate(orbEl);
+    },
+
+    emitToTargets: function () {
+        if (this.data.targets) {
+            const selectors = this.data.targets
+                .split(',')
+                .map(s => s.trim())
+                .filter(Boolean);
+
+            selectors.forEach(selector => {
+                const targetEl = document.querySelector(selector);
+
+                if (targetEl) {
+                    targetEl.emit('openDoor');
+                } else {
+                    console.warn("Target no encontrado:", selector);
+                }
+            });
+
+            return;
+        }
+
+        if (this.data.target) {
+            this.data.target.emit('openDoor');
+        }
     },
 
     activate: function (orb) {
@@ -118,7 +144,7 @@ AFRAME.registerComponent('pedestal', {
         this.el.setAttribute('material', 'emissive', '#00ffff', 'emissiveIntensity', 5);
 
         setTimeout(() => {
-            this.data.target.emit('openDoor');
+            this.emitToTargets();
         }, 300);
     }
 

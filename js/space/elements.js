@@ -69,6 +69,21 @@ function getObjectSpawnAwayFromPoint(origin, roomSize, options = {}) {
 
 // ---------------------------------------------------------------------------------
 
+function normalizeTargetSelectors(targetSelectors) {
+    if (!Array.isArray(targetSelectors)) {
+        targetSelectors = [targetSelectors];
+    }
+
+    return targetSelectors
+        .filter(Boolean)
+        .map(target => {
+            if (typeof target !== 'string') return null;
+            return target.startsWith('#') ? target : `#${target}`;
+        })
+        .filter(Boolean)
+        .join(',');
+}
+
 // ---------------------------------------------------------------------------------
 //                                   FUNCIONES DE LAS PUERTAS
 // ---------------------------------------------------------------------------------
@@ -150,24 +165,22 @@ function createButton(position, targetSelector, room, options ={}) {
     button.setAttribute('height', options.height ?? 0.35);
     button.setAttribute('depth', options.depth ?? 0.08);
 
+    button.setAttribute('class', 'interactable');
     button.setAttribute('interactable', '');
 
-    button.setAttribute('static-body', '');
     
     button.setAttribute('material', options.material || {
         src: '#wallTex',
         repeat: '0.5 0.5',
+        emissive: '#ffffff',
+        emissiveIntensity: 0.3
     });
 
-    button.setAttribute('shadow', {
-        cast: true,
-        receive: true
-    });
 
     // Configuramos el botón para que dispare el evento a la puerta que encontramos
     button.setAttribute('button', {
         event: 'openDoor',
-        target: '#' + targetSelector,
+        targets: normalizeTargetSelectors(targetSelector),
         pressOffset: options.pressOffset || { x: 0, y: 0, z: -0.05 }
     });
     
@@ -197,7 +210,6 @@ function createButtonWithHitbox(position, targetSelector, room) {
     hitbox.setAttribute('width', '0.6');
 
     hitbox.setAttribute('visible', false);
-    hitbox.setAttribute('static-body', '');
     
     // Configuramos el botón para que dispare el evento a la puerta que encontramos
     hitbox.setAttribute('button', {
@@ -237,6 +249,8 @@ function createCamouflagedWallButton(room, targetSelector, roomSize = 10) {
     const material = {
         src: '#wallTex',
         repeat: '0.45 0.45',
+        emissive: '#9b9b9b',
+        emissiveIntensity: 0.005
     };
 
     let position;
@@ -381,19 +395,25 @@ function createOrb(position) {
 //                                   FUNCIONES DE LOS PEDESTALES
 // ---------------------------------------------------------------------------------
 
-function createPedestal(position, doorSelector) {
+function createPedestal(position, doorSelector, options = {}) {
 
     const base = document.createElement('a-cylinder');
+
     base.setAttribute('position', position);
     base.setAttribute('radius', '0.3');
     base.setAttribute('height', '1');
     base.setAttribute('color', '#444');
     base.setAttribute('static-body', '');
+
     base.setAttribute('class', 'interactable');
     base.setAttribute('interactable', '');
+
+    const targets = normalizeTargetSelectors(doorSelector);
+    const puzzleID = options.puzzleID || getFirstTargetId(doorSelector);
+
     base.setAttribute('pedestal', {
-        target: '#' + doorSelector,
-        puzzleID: doorSelector
+        targets: targets,
+        puzzleID: puzzleID
     });
 
     return base;
@@ -409,7 +429,7 @@ function createPressurePlate(position, doorSelector, options={}) {
     const plate = document.createElement('a-box');
     plate.setAttribute('position', position);
     plate.setAttribute('width', options.width ?? 1.2);
-    plate.setAttribute('height', options.height ?? 0.04);
+    plate.setAttribute('height', options.height ?? 0.2);
     plate.setAttribute('depth', options.depth ?? 1.2);
     
     plate.setAttribute('material', options.material || {
@@ -417,15 +437,10 @@ function createPressurePlate(position, doorSelector, options={}) {
         repeat: '0.6 0.6',
     });
 
-    plate.setAttribute('shadow', {
-        cast: true,
-        receive: true
-    });
-
     //plate.setAttribute('static-body', '');
     
     plate.setAttribute('pressure-plate', {
-        target: '#' + doorSelector,
+        targets: normalizeTargetSelectors(doorSelector),
         pressDepth: options.pressDepth ?? 0.025
     });
     return plate;
@@ -436,9 +451,9 @@ function createCamouflagedPressurePlate(room, doorSelector, roomSize = 10) {
 
     const platePos = randomFloorPoint(roomSize, margin);
 
-    const plate = createPressurePlate(`${platePos.x} 0.025 ${platePos.z}`, doorSelector, {
+    const plate = createPressurePlate(`${platePos.x} 0.2 ${platePos.z}`, doorSelector, {
         width: 1.2,
-        height: 0.04,
+        height: 0.08,
         depth: 1.2,
         pressDepth: 0.025,
         material: {

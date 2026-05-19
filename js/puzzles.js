@@ -1,37 +1,104 @@
 
+function getPuzzleDoorIds(data) {
+    const raw = data.doorIds || data.doorId || '';
+
+    if (Array.isArray(raw)) {
+        return raw.filter(Boolean);
+    }
+
+    return String(raw)
+        .split(',')
+        .map(id => id.trim())
+        .filter(Boolean);
+}
+
+function getFirstPuzzleDoorId(data) {
+    const first = getPuzzleDoorIds(data)[0] || '';
+    return first.replace('#', '');
+}
+
+function getPuzzleDoorSelectors(data) {
+    return getPuzzleDoorIds(data)
+        .map(id => id.startsWith('#') ? id : `#${id}`)
+        .join(',');
+}
+
+function getPuzzleDoorElements(data) {
+    const selectors = getPuzzleDoorSelectors(data);
+
+    if (!selectors) return [];
+
+    return selectors
+        .split(',')
+        .map(selector => document.querySelector(selector))
+        .filter(Boolean);
+}
+
+function lockPuzzleDoors(data) {
+    const doors = getPuzzleDoorElements(data);
+
+    doors.forEach(doorEl => {
+        if (doorEl.components?.door) {
+            doorEl.components.door.isLocked = true;
+        }
+
+        if (doorEl.doorData) {
+            doorEl.doorData.isLocked = true;
+        }
+    });
+
+    if (doors.length === 0) {
+        console.warn("No se encontraron puertas para puzzle:", data);
+    }
+
+    return doors;
+}
+
+function emitToPuzzleDoors(data, eventName = 'openDoor') {
+    const doors = getPuzzleDoorElements(data);
+
+    doors.forEach(doorEl => {
+        doorEl.emit(eventName);
+    });
+
+    return doors;
+}
 
 AFRAME.registerComponent('puzzle-button-door', {
 
     schema: {
-        doorId: { type: 'string' }
+        doorId: { type: 'string', default: '' },
+        doorIds: { type: 'string', default: '' }
     },
 
     init: function () {
         const room = this.el;
 
-        const existingDoorPivot = document.querySelector('#' + this.data.doorId);
+        const doors = lockPuzzleDoors(this.data);
 
-        console.log("YAAAAAAS.");
-
-        if(!existingDoorPivot) {
-            console.warn("No se encontró la puerta con ID:", this.data.doorId);
+        if (doors.length === 0) {
+            console.warn("No se encontró ninguna puerta para puzzle-button-door:", this.data);
             return;
         }
 
-        console.log("Se encontró la puerta con ID:", this.data.doorId);
-        
-        existingDoorPivot.components.door.isLocked = true;
+        const targetSelectors = getPuzzleDoorSelectors(this.data);
 
-        const button = createCamouflagedWallButton(room, this.data.doorId, window.roomSize || 10);
+        const button = createCamouflagedWallButton(
+            room,
+            targetSelectors,
+            window.roomSize || 10
+        );
 
         room.appendChild(button);
-        
+
+        console.log("[Botón] Puzzle creado. Abre:", targetSelectors);
     }
 });
 
 AFRAME.registerComponent('puzzle-orb-pedestal', {
     schema: {
-        doorId: { type: 'string' },
+        doorId: { type: 'string', default: '' },
+        doorIds: { type: 'string', default: '' },
         prevRoomId: { type: 'string' }
     },
 
@@ -39,62 +106,87 @@ AFRAME.registerComponent('puzzle-orb-pedestal', {
         const currentRoom = this.el;
         const prevRoom = document.getElementById(this.data.prevRoomId);
 
+        const targets = getPuzzleDoorSelectors(this.data);
+        const puzzleID = getFirstPuzzleDoorId(this.data);
 
-        const existingDoorPivot = document.querySelector('#' + this.data.doorId);
-
-        console.log("YAAAAAAS.");
-
-        if(!existingDoorPivot) {
-            console.warn("No se encontró la puerta con ID:", this.data.doorId);
+        if (!targets || !puzzleID) {
+            console.warn('[Orbe] Puzzle sin targets válidos:', this.data);
             return;
         }
 
-        console.log("Se encontró la puerta con ID:", this.data.doorId);
-        
-        existingDoorPivot.components.door.isLocked = true;
+        // Bloquear todas las puertas objetivo
+        getPuzzleDoorElements(this.data).forEach(doorEl => {
+            if (doorEl.components?.door) {
+                doorEl.components.door.isLocked = true;
+            }
 
-        // 2. Crear Orbe en la sala anterior (posicionado de forma que se vea)
+            if (doorEl.doorData) {
+                doorEl.doorData.isLocked = true;
+            }
+        });
+
+        // El orbe aparece en la habitación anterior
         if (prevRoom) {
-            const orb = createOrb('0 1.6 0'); 
-            orb.setAttribute('data-puzzle-id', this.data.doorId); // asociamos el orbe con la puerta que abre
+            const orb = createOrb('0 1.6 0');
+
+            // El orbe y el pedestal comparten este mismo puzzleID
+            orb.setAttribute('data-puzzle-id', puzzleID);
+
             prevRoom.appendChild(orb);
+
+            console.log('[Orbe] Creado en', this.data.prevRoomId, 'con puzzleID:', puzzleID);
+        } else {
+            console.warn('[Orbe] No se encontró la habitación anterior:', this.data.prevRoomId);
         }
 
-        // 3. Crear Pedestal en la sala actual
-        // El pedestal le pasa el ID de la puerta que debe abrir
-        const pedestal = createPedestal('0 0 0', this.data.doorId);
+        // Pedestal en la habitación actual
+        const pedestal = createPedestal('0 0 0', targets, {
+            puzzleID: puzzleID
+        });
+
         currentRoom.appendChild(pedestal);
+
+        console.log('[Pedestal] Creado en', currentRoom.id, 'abre:', targets, 'puzzleID:', puzzleID);
     }
 });
 
 AFRAME.registerComponent('puzzle-pressure-plate', {
     schema: {
-        doorId: { type: 'string' }
+        doorId: { type: 'string', default: '' },
+        doorIds: { type: 'string', default: '' }
     },
 
     init: function () {
-
         const room = this.el;
 
-        const door = document.querySelector('#' + this.data.doorId);
-        if (!door) {
-            console.warn("No se encontró la puerta:", this.data.doorId);
+        const doors = lockPuzzleDoors(this.data);
+
+        if (doors.length === 0) {
+            console.warn("No se encontró ninguna puerta para puzzle-pressure-plate:", this.data);
             return;
         }
 
-        door.components.door.isLocked = true;
+        const targetSelectors = getPuzzleDoorSelectors(this.data);
 
-        const plateSetup = createCamouflagedPressurePlate(room, this.data.doorId, window.roomSize || 10);
+        const plateSetup = createCamouflagedPressurePlate(
+            room,
+            targetSelectors,
+            window.roomSize || 10
+        );
+
         room.appendChild(plateSetup.plate);
 
         const box = createTestBox(plateSetup.boxPosition);
         room.appendChild(box);
+
+        console.log("[Placa] Puzzle creado. Abre:", targetSelectors);
     }
 });
 
 AFRAME.registerComponent('puzzle-memory-match', {
     schema: {
-        doorId: { type: 'string' },
+        doorId: { type: 'string', default: '' },
+        doorIds: { type: 'string', default: '' },
         length: { type: 'number', default: 4 },
         showSpeed: { type: 'number', default: 650 }
     },
@@ -110,14 +202,12 @@ AFRAME.registerComponent('puzzle-memory-match', {
         this.isShowing = false;
         this.isSolved = false;
 
-        this.door = document.querySelector('#' + this.data.doorId);
+        this.doors = lockPuzzleDoors(this.data);
 
-        if (!this.door) {
-            console.warn("No se encontró la puerta:", this.data.doorId);
+        if (this.doors.length === 0) {
+            console.warn("No se encontró ninguna puerta para puzzle-memory-match:", this.data);
             return;
         }
-
-        this.door.components.door.isLocked = true;
 
         const panelSetup = createMemoryPuzzlePanel(this.room, this.roomSize, {
             canHover: () => {
@@ -218,7 +308,6 @@ AFRAME.registerComponent('puzzle-memory-match', {
     fail: function () {
         console.log('[Memory] Patrón incorrecto. Reiniciando.');
 
-        this.generateSequence();
         this.input = [];
         this.isShowing = true;
 
@@ -231,15 +320,21 @@ AFRAME.registerComponent('puzzle-memory-match', {
         });
 
         setTimeout(() => {
-            this.showSequence();
+            this.resetPuzzle();
         }, 900);
+    },
+
+    resetPuzzle: function(){
+        this.input = [];
+        this.generateSequence();
+        this.showSequence();
     },
 
     solve: function () {
         this.isSolved = true;
         this.isShowing = false;
 
-        console.log('[Memory] Puzzle resuelto. Abriendo puerta:', this.data.doorId);
+        console.log('[Memory] Puzzle resuelto. Abriendo puertas:', getPuzzleDoorSelectors(this.data));
 
         this.pads.forEach(pad => {
             pad.setAttribute('material', {
@@ -251,7 +346,7 @@ AFRAME.registerComponent('puzzle-memory-match', {
             pad.setAttribute('scale', '1 1 1');
         });
 
-        this.door.emit('openDoor');
+        emitToPuzzleDoors(this.data, 'openDoor');
     }
 });
 

@@ -3,6 +3,7 @@ AFRAME.registerComponent('pressure-plate', {
 
     schema: {
         target: { type: 'selector' },
+        targets: { type: 'string', default: '' },
         pressDepth: { type: 'number', default: 0.012 },
         activationMargin: { type: 'number', default: 0.12 },
         maxActivationHeight: { type: 'number', default: 0.35 }
@@ -150,9 +151,8 @@ AFRAME.registerComponent('pressure-plate', {
             easing: 'easeOutQuad'
         });
 
-        if (this.data.target) {
-            this.data.target.emit('activateDoor');
-        }
+        this.emitToTargets('activateDoor');
+        
     },
 
     released: function () {
@@ -173,8 +173,32 @@ AFRAME.registerComponent('pressure-plate', {
             easing: 'easeOutQuad'
         });
 
-        if (this.data.target) {
-            this.data.target.emit('closeDoor');
+        this.emitToTargets('closeDoor');
+        
+    },
+
+    emitToTargets: function (eventName) {
+        if (this.data.targets) {
+            const selectors = this.data.targets
+                .split(',')
+                .map(s => s.trim())
+                .filter(Boolean);
+
+            selectors.forEach(selector => {
+                const targetEl = document.querySelector(selector);
+
+                if (targetEl) {
+                    targetEl.emit(eventName);
+                } else {
+                    console.warn("Target no encontrado:", selector);
+                }
+            });
+
+            return;
         }
-    }
+
+        if (this.data.target) {
+            this.data.target.emit(eventName);
+        }
+    },
 });
