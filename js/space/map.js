@@ -1,4 +1,12 @@
 
+function getMainPathCoords() {
+    return [
+        {x:0, z:0}, {x:0, z:1}, {x:0, z:2},
+        {x:1, z:2}, {x:1, z:1}, {x:1, z:0},
+        {x:2, z:0}, {x:2, z:1}, {x:2, z:2}
+    ];
+}
+
 AFRAME.registerComponent('map', {
     init: function () {
 
@@ -11,13 +19,24 @@ AFRAME.registerComponent('map', {
 
         const roomSize = 10;
 
-        const rooms = createGraph(layout);
+        const mainPathCoords = getMainPathCoords();
+        const allowedConnections = createConnectionsFromPath(mainPathCoords);
+
+        const rooms = createGraph(layout, allowedConnections);
 
         window.rooms = rooms; // para debugear
+        window.roomSize = roomSize;
 
         renderMap(rooms, roomSize);
+
+        // Creamos la navmesh después de crear las salas y puertas
+        rebuildGeneratedNavMesh(rooms, roomSize);
+
+        // Guardamos función global para reconstruirla al abrir puertas
+        window.rebuildNavMesh = () => rebuildGeneratedNavMesh(rooms, roomSize);
         
         assignPuzzlesPremium(rooms);
+        createEndRoomTrigger(rooms, mainPathCoords, roomSize);
     }
 });
 
@@ -48,6 +67,7 @@ function renderMap(rooms, roomSize) {
                 
                 // se guarda la referencia
                 door.el = doorPivot; 
+                door.el.doorData = door;
                 door.rendered = true;
 
                 // Opcional: ponerle un ID único para debug
@@ -57,14 +77,9 @@ function renderMap(rooms, roomSize) {
     });
 }
 
-function assignPuzzlesPremium(rooms) {
+function assignPuzzlesPremium(rooms, pathCoords = null) {
     // 1. Definimos el orden de las celdas según tu esquema (x, z)
-    const pathCoords = [
-        {x:0, z:0}, {x:0, z:1}, {x:0, z:2}, // Columna 0 (Baja)
-        {x:1, z:2}, {x:1, z:1}, {x:1, z:0}, // Columna 1 (Sube)
-        {x:2, z:0}, {x:2, z:1}, {x:2, z:2}  // Columna 2 (Baja)
-    ];
-
+    pathCoords = pathCoords || getMainPathCoords();
     const usedDoors = new Set();
 
     for (let i = 0; i < pathCoords.length - 1; i++) {
@@ -89,7 +104,7 @@ function assignPuzzlesPremium(rooms) {
         door.hasPuzzle = true;
         currentRoom.puzzleDoor = door; // Mantenemos la referencia por si acaso
 
-        const type = i % 3
+        const type = i % 4
 
         if (type === 0) {
             // PUZZLE DE BOTÓN
@@ -117,6 +132,15 @@ function assignPuzzlesPremium(rooms) {
 
             console.log(`[Placa] Sala ${currentRoom.id} usa caja para abrir ${door.el.id}`);
         }
+        else if (type == 3){
+            currentRoom.el.setAttribute('puzzle-memory-match', {
+                doorId: door.el.id,
+                length: 4,
+                showSpeed: 650
+            });
+
+            console.log(`[Memory] Sala ${currentRoom.id} usa patrón de memoria para abrir ${door.el.id}`);
+        }
         console.log(`[Puzzle] Sala ${currentRoom.id} abre puerta ${directionToNext} (${door.el.id})`);
     }
 
@@ -130,44 +154,263 @@ function assignPuzzlesPremium(rooms) {
     }
 }
 
-function assignPuzzles(rooms) {
-    
+function createEndRoomTrigger(rooms, pathCoords, roomSize) {
+    const lastCoord = pathCoords[pathCoords.length - 1];
+    const lastRoomId = `room-${lastCoord.x}-${lastCoord.z}`;
+    const lastRoom = rooms[lastRoomId];
+
+    if (!lastRoom || !lastRoom.el) {
+        console.warn('No se pudo crear trigger final. Sala no encontrada:', lastRoomId);
+        return;
+    }
+
+    const trigger = document.createElement('a-cylinder');
+
+    trigger.setAttribute('radius', '2.5');
+    trigger.setAttribute('height', '0.08');
+    trigger.setAttribute('position', '0 0.05 0');
+    trigger.setAttribute('material', {
+        color: '#00ffcc',
+        opacity: 0.18,
+        transparent: true
+    });
+
+    // Para debug puedes dejarlo visible.
+    // Para beta final, pon visible false.
+    trigger.setAttribute('visible', 'false');
+
+    trigger.setAttribute('end-room-trigger', {
+        radius: 2.8
+    });
+
+    lastRoom.el.appendChild(trigger);
+
+    console.log('Trigger final creado en', lastRoomId);
+}
+
+function rebuildGeneratedNavMesh(rooms, roomSize) {
+    const scene = document.querySelector('a-scene');
+
+    const oldNavMesh = document.querySelector('#generated-navmesh');
+    if (oldNavMesh) {
+        oldNavMesh.parentNode.removeChild(oldNavMesh);
+    }
+
+    const NAVMESH_DEBUG = true;
+
+    // true = para probar, todas las puertas dejan pasar.
+    // false = solo deja pasar por puertas abiertas.
+    const ALLOW_CLOSED_DOORS = true;
+
+    const playerMargin = 0.45;
+    const doorWidth = 1.25;
+
+    const halfRoom = roomSize / 2;
+    const innerHalf = halfRoom - playerMargin;
+    const halfDoor = doorWidth / 2;
+
+    const y = 0.03;
+    const EPS = 0.0001;
+
+    const rects = [];
+
+    function addArea(minX, minZ, maxX, maxZ) {
+        rects.push({
+            minX: Math.min(minX, maxX),
+            maxX: Math.max(minX, maxX),
+            minZ: Math.min(minZ, maxZ),
+            maxZ: Math.max(minZ, maxZ)
+        });
+    }
+
+    function rectContainsPoint(rect, x, z) {
+        return (
+            x >= rect.minX - EPS &&
+            x <= rect.maxX + EPS &&
+            z >= rect.minZ - EPS &&
+            z <= rect.maxZ + EPS
+        );
+    }
+
+    function isInsideAnyArea(x, z) {
+        return rects.some(rect => rectContainsPoint(rect, x, z));
+    }
+
+    // 1. Añadir zonas navegables de salas
     Object.values(rooms).forEach(room => {
+        const cx = room.x * roomSize;
+        const cz = room.z * roomSize;
 
-        // Buscar una puerta sin puzzle asignado
-        const doorKey = Object.keys(room.doors).find(key => !room.doors[key].hasPuzzle);
+        addArea(
+            cx - innerHalf,
+            cz - innerHalf,
+            cx + innerHalf,
+            cz + innerHalf
+        );
+    });
 
-        if (doorKey) {
-            const targetDoor = room.doors[doorKey];
+    // 2. Añadir conectores de puertas
+    const usedDoors = new Set();
 
-            targetDoor.hasPuzzle = true; // marcar puerta como asignada a puzzle
+    Object.values(rooms).forEach(room => {
+        const cx = room.x * roomSize;
+        const cz = room.z * roomSize;
 
-            room.puzzle = 'puzzle-button-door';
-            room.puzzleDoor = targetDoor;
+        for (let dir in room.doors) {
+            const door = room.doors[dir];
 
-            //Añadir el componente de puzzle a la habitación, pasando el ID de la puerta como parámetro
-            room.el.setAttribute('puzzle-button-door', {
-                doorId: targetDoor.el.id
-            });
+            if (usedDoors.has(door)) continue;
+            usedDoors.add(door);
 
-            console.log(`Puzzle asignado a ${room.id} controlando puerta ${targetDoor.el.id}`);
-        }
+            const visualDoorOpen = door.el?.components?.door?.isOpen === true;
+            const logicalDoorOpen = door.isOpen === true;
 
-        // ejemplo: 30% rooms tienen puzzle
-        if (Object.keys(room.doors).length > 0) {
+            if (!ALLOW_CLOSED_DOORS && !visualDoorOpen && !logicalDoorOpen) {
+                continue;
+            }
 
-            room.puzzle = 'puzzle-button-door';
+            switch (dir) {
+                case 'north':
+                    addArea(
+                        cx - halfDoor,
+                        cz - roomSize + innerHalf,
+                        cx + halfDoor,
+                        cz - innerHalf
+                    );
+                    break;
 
-            const doorKey = Object.keys(room.doors)[0];
-            const targetDoor = room.doors[doorKey];
-            room.puzzleDoor = targetDoor;
+                case 'south':
+                    addArea(
+                        cx - halfDoor,
+                        cz + innerHalf,
+                        cx + halfDoor,
+                        cz + roomSize - innerHalf
+                    );
+                    break;
 
-            // Pasamos el ID de la puerta como un parámetro al componente
-            room.el.setAttribute('puzzle-button-door', {
-                doorId: targetDoor.el.id
-            });
+                case 'east':
+                    addArea(
+                        cx + innerHalf,
+                        cz - halfDoor,
+                        cx + roomSize - innerHalf,
+                        cz + halfDoor
+                    );
+                    break;
+
+                case 'west':
+                    addArea(
+                        cx - roomSize + innerHalf,
+                        cz - halfDoor,
+                        cx - innerHalf,
+                        cz + halfDoor
+                    );
+                    break;
+            }
         }
     });
+
+    // 3. Crear una retícula usando todos los cortes de las zonas.
+    // Esto hace que salas y conectores compartan aristas exactas.
+    const xs = [];
+    const zs = [];
+
+    rects.forEach(rect => {
+        xs.push(rect.minX, rect.maxX);
+        zs.push(rect.minZ, rect.maxZ);
+    });
+
+    function uniqueSorted(values) {
+        return [...new Set(values.map(v => Number(v.toFixed(4))))].sort((a, b) => a - b);
+    }
+
+    const gridX = uniqueSorted(xs);
+    const gridZ = uniqueSorted(zs);
+
+    const vertices = [];
+    const indices = [];
+    const vertexMap = new Map();
+
+    function getVertexIndex(x, z) {
+        const key = `${x.toFixed(4)},${z.toFixed(4)}`;
+
+        if (vertexMap.has(key)) {
+            return vertexMap.get(key);
+        }
+
+        const index = vertices.length / 3;
+        vertices.push(x, y, z);
+        vertexMap.set(key, index);
+        return index;
+    }
+
+    function addCell(minX, minZ, maxX, maxZ) {
+        const v00 = getVertexIndex(minX, minZ);
+        const v10 = getVertexIndex(maxX, minZ);
+        const v11 = getVertexIndex(maxX, maxZ);
+        const v01 = getVertexIndex(minX, maxZ);
+
+        indices.push(
+            v00, v11, v10,
+            v00, v01, v11
+        );
+    }
+
+    for (let ix = 0; ix < gridX.length - 1; ix++) {
+        for (let iz = 0; iz < gridZ.length - 1; iz++) {
+            const minX = gridX[ix];
+            const maxX = gridX[ix + 1];
+            const minZ = gridZ[iz];
+            const maxZ = gridZ[iz + 1];
+
+            if (Math.abs(maxX - minX) < EPS || Math.abs(maxZ - minZ) < EPS) {
+                continue;
+            }
+
+            const midX = (minX + maxX) / 2;
+            const midZ = (minZ + maxZ) / 2;
+
+            if (isInsideAnyArea(midX, midZ)) {
+                addCell(minX, minZ, maxX, maxZ);
+            }
+        }
+    }
+
+    const geometry = new THREE.BufferGeometry();
+
+    geometry.setAttribute(
+        'position',
+        new THREE.Float32BufferAttribute(vertices, 3)
+    );
+
+    geometry.setIndex(indices);
+    geometry.computeVertexNormals();
+
+    const material = new THREE.MeshBasicMaterial({
+        color: 0x00ff00,
+        transparent: true,
+        opacity: NAVMESH_DEBUG ? 0.25 : 0,
+        side: THREE.DoubleSide,
+        depthWrite: false
+    });
+
+    const mesh = new THREE.Mesh(geometry, material);
+
+    const navEntity = document.createElement('a-entity');
+    navEntity.setAttribute('id', 'generated-navmesh');
+    navEntity.setObject3D('mesh', mesh);
+
+    scene.appendChild(navEntity);
+
+    // Importante: después de setObject3D
+    navEntity.setAttribute('nav-mesh', '');
+
+    console.log(
+        'Navmesh reconstruida:',
+        vertices.length / 3,
+        'vértices,',
+        indices.length / 3,
+        'triángulos'
+    );
 }
 
 /*

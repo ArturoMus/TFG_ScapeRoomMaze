@@ -14,6 +14,7 @@ AFRAME.registerComponent('interactable', {
 
         // Este modo es para pc
         this.el.addEventListener('click', (evt) => {
+            if (this.el.classList.contains('grabbable')) return;
             console.log("CLICK detectado en:", this.el);
             handler(evt);
         });
@@ -25,6 +26,7 @@ AFRAME.registerComponent('interactable', {
 
         // Si luego usara raycasters en vr
         this.el.addEventListener('triggerdown', (evt) => {
+            if (this.el.classList.contains('grabbable')) return;
             handler(evt);
         });
     },
@@ -47,7 +49,6 @@ AFRAME.registerComponent('interactable', {
     },
 
     defaultInteract: function () {
-        this.el.setAttribute('color', '#'+Math.floor(Math.random()*16777215).toString(16));
         console.log("Interacción por defecto");
     }
 });

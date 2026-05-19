@@ -6,11 +6,14 @@
 
     <script src="https://aframe.io/releases/1.7.0/aframe.min.js"></script>
 
+    <script src="https://cdn.jsdelivr.net/npm/aframe-extras@7.7.0/dist/aframe-extras.min.js"></script>
+
     <script src="https://unpkg.com/super-hands@^4.0.3/dist/super-hands.min.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-physics-system@v4.2.4/dist/aframe-physics-system.min.js"></script>
 
     <script src="js/player.js"></script>
     <script src="js/interaction.js"></script>
+    <script src="js/grabber.js"></script>
     <script src="js/objects/door.js"></script>
     <script src="js/objects/button.js"></script>
     <script src="js/space/graph.js"></script>
@@ -19,6 +22,7 @@
     <script src="js/space/elements.js"></script>
     <script src="js/puzzles.js"></script>
     <script src="js/collision.js"></script>
+    <script src="js/menu.js"></script>
     <script src="js/game.js"></script>
     <script src="js/objects/orb.js"></script>
     <script src="js/objects/pedestal.js"></script>
@@ -46,7 +50,7 @@
     ">
         <h1 id="overlay-title">(Pensar nombre juego)</h1>
         <button id="start-button">Empezar</button>
-    </div>
+    </div>  
 
     <a-scene shadow="type: pcfsoft" light="defaultLightsEnabled: false" physics="debug: true; gravity: -9.8">
 
@@ -83,16 +87,28 @@
         <!-- Poner color al 333 e intensidad al 0.6 para hacerlo más oscurito-->
         <a-entity light="type: ambient; color: #999; intensity: 0.6"></a-entity>
 
+        <a-entity id="main-menu"
+                main-menu
+                position="0 1.6 -2.6">
+        </a-entity>
+
+        <a-entity id="loading-screen"
+                vr-loading-screen
+                position="0 1.6 -2.6">
+        </a-entity>
+
             <!-- Jugador -->
             <!--
                 Ahora los controles son con wasd, para cuando use vr probar a añadir esto
                 movement-controls="fly: false; speed: 0.1;"
             -->
+
+        <!--    
         <a-entity id="player" player-controls position="0 1.6 0">
-            <a-entity camera look-controls>
+            <a-entity camera look-controls> -->
                 <!-- Revisar con la página oficial-->
                 <!-- Cursor en el centro de la cámara para wasd -->
-                <a-entity cursor-feedback
+                <!--<a-entity cursor-feedback
                     cursor="fuse: false; rayOrigin: entity" 
                     raycaster="objects: .grabbable, .interactable" 
                     geometry="primitive: ring; radiusInner: 0.01; radiusOuter: 0.02"
@@ -105,7 +121,7 @@
                     raycaster="objects: .interactable"
                     cursor
                     hand-controller>
-                </a-entity>
+                </a-entity>-->
 
                 <!--
                 <a-entity 
@@ -126,10 +142,42 @@
                         raycaster="objects: .interactable">
                     </a-entity>
                 -->
-                <a-entity id="orb-holder" position="0 -0.3 -0.8"></a-entity>
+                <!--<a-entity id="orb-holder" position="0 -0.3 -0.8"></a-entity>
             </a-entity>
+        </a-entity>-->
+        <a-entity id="player"
+                movement-controls="controls: gamepad, keyboard; speed: 0; fly: false; constrainToNavMesh: true"
+                gamepad-controls="rotationSensitivity: 1"
+                position="0 0 0">
+
+            <a-entity id="camera"
+                    camera
+                    look-controls="pointerLockEnabled: true"
+                    position="0 1.6 0">
+
+                    <a-entity id="end-screen"
+                            vr-end-screen
+                            visible="false"
+                            position="0 1.6 -2.6">
+                    </a-entity>
+            </a-entity>
+
+            <a-entity id="leftHand"
+                    laser-controls="hand: left; handModelStyle: highPoly; color: #ffcccc"
+                    raycaster="objects: .interactable, .grabbable, .ray-blocker; far: 3"
+                    line="color: white"
+                    vr-grabber>
+            </a-entity>
+
+            <a-entity id="rightHand"
+                    laser-controls="hand: right; handModelStyle: highPoly; color: #ffcccc"
+                    raycaster="objects: .interactable, .grabbable, .ray-blocker; far: 3"
+                    line="color: white"
+                    vr-grabber>
+            </a-entity>
+
         </a-entity>
-        <a-entity map></a-entity>
+        <a-entity id="map-root"></a-entity>
     </a-scene>
 </body>
 </html>

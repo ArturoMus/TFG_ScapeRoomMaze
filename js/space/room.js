@@ -9,7 +9,7 @@ function createBasicRoom(roomSize, id, position, neighbors = null) {
 
     // --------------------------------------------------------------
         // Debug: marcadores de paredes
-        const roomBox1 = document.createElement('a-box'); //delante, norte
+        /*const roomBox1 = document.createElement('a-box'); //delante, norte
         roomBox1.setAttribute('position', '0 1 -3');
         roomBox1.setAttribute('color', 'red');
         roomBox1.setAttribute('depth', '0.2');
@@ -36,7 +36,7 @@ function createBasicRoom(roomSize, id, position, neighbors = null) {
         roomBox4.setAttribute('depth', '0.2');
         roomBox4.setAttribute('height', '0.2');
         roomBox4.setAttribute('width', '0.2');
-        room.appendChild(roomBox4);
+        room.appendChild(roomBox4);*/
     // --------------------------------------------------------------
 
     const h = 2; 
@@ -54,6 +54,7 @@ function createRoomStructure(room, roomSize, neighbors) {
     floor.setAttribute('rotation', '-90 0 0');
     floor.setAttribute('width', roomSize);
     floor.setAttribute('height', roomSize);
+    floor.setAttribute('class', 'ray-blocker');
     floor.setAttribute('static-body', {
         friction: 1,
         restitution: 0
@@ -77,6 +78,7 @@ function createRoomStructure(room, roomSize, neighbors) {
     ceiling.setAttribute('width', roomSize);
     ceiling.setAttribute('height', roomSize);
     ceiling.setAttribute('static-body', '');
+    ceiling.setAttribute('class', 'ray-blocker');
     ceiling.setAttribute('material', {
         src: '#wallTex',
         //normalMap: '#wallNormal',
@@ -126,6 +128,7 @@ function createWall(position, size) {
     wall.setAttribute('height', h);
     wall.setAttribute('depth', d);
     wall.setAttribute('static-body', '');
+    wall.setAttribute('class', 'ray-blocker');
     wall.setAttribute('material', {
         src: '#wallTex',
         //normalMap: '#wallNormal',

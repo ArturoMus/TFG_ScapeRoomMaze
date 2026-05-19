@@ -2,11 +2,14 @@
 AFRAME.registerComponent('button', {
     schema: {
         event: { type: 'string', default: 'activate' },
-        target: { type: 'selector' }
+        target: { type: 'selector' },
+        // Esto sirve para que el botón se pueda mover en la dirección correcta, es decir, para que se meta bien en la pared
+        pressOffset: { type: 'vec3', default: { x: 0, y: 0, z: -0.05 } }
     },
 
     init: function () {
         this.isPressed = false;
+        this.initialPos = this.el.object3D.position.clone();
 
         this.el.setAttribute('sound', {
             src: '#buttonSound',
@@ -35,15 +38,29 @@ AFRAME.registerComponent('button', {
 
         console.log("Botón empujado");
 
-        this.el.setAttribute('color', 'green');
+        const targetPos = this.initialPos.clone().add(
+            new THREE.Vector3(
+                this.data.pressOffset.x,
+                this.data.pressOffset.y,
+                this.data.pressOffset.z
+            )
+        );
 
         // Animación hacia dentro (LOCAL, importante)
         this.el.setAttribute('animation__press', {
             property: 'position',
-            to: `${this.el.object3D.position.x} ${this.el.object3D.position.y } ${this.el.object3D.position.z-0.1}`,
+            to: `${targetPos.x} ${targetPos.y} ${targetPos.z}`,
             dur: 150,
             easing: 'easeOutQuad'
         });
+
+        // MIRAAAAAR
+        /*this.el.setAttribute('material', {
+            color: '#777',
+            src: '#wallTex',
+            normalMap: '#wallNormal',
+            repeat: '0.5 0.5'
+        });*/
 
         // Evento
         if (this.data.target) {
