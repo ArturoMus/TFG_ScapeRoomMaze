@@ -176,7 +176,7 @@ AFRAME.registerComponent('puzzle-pressure-plate', {
 
         room.appendChild(plateSetup.plate);
 
-        const box = createTestBox(plateSetup.boxPosition);
+        const box = createPuzzleBox(plateSetup.boxPosition);
         room.appendChild(box);
 
         console.log("[Placa] Puzzle creado. Abre:", targetSelectors);
