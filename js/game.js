@@ -11,6 +11,13 @@ window.playerState = {
     hasOrb: false
 };
 
+window.performanceConfig = {
+    lowSpecMode: true,
+    disableTorchLights: true,
+    disableShadows: true,
+    maxActiveTorchLights: 4
+};
+
 window.addEventListener('load', () => {
     /*const overlay = document.getElementById('overlay');
     overlay.style.display = 'flex';
@@ -27,6 +34,28 @@ window.addEventListener('load', () => {
     setPlayerMovementEnabled(false);
 });
 
+function applyPerformanceMode() {
+    const scene = document.querySelector('a-scene');
+
+    if (window.performanceConfig.disableShadows && scene) {
+        scene.setAttribute('shadow', 'enabled: false');
+    }
+
+    if (window.performanceConfig.disableTorchLights) {
+        const pointLights = [...document.querySelectorAll('[light]')].filter(el => {
+            const light = el.getAttribute('light');
+            return light && light.type === 'point';
+        });
+
+        pointLights.forEach((lightEl, index) => {
+            if (index >= window.performanceConfig.maxActiveTorchLights) {
+                lightEl.setAttribute('visible', false);
+            }
+        });
+
+        console.log(`[Performance] Luces puntuales activas limitadas a ${window.performanceConfig.maxActiveTorchLights}`);
+    }
+}
 
 function setPlayerMovementEnabled(enabled) {
     const player = document.querySelector('#player');
@@ -50,6 +79,10 @@ function generateMapOnce() {
     }
 
     mapRoot.setAttribute('map', '');
+
+    setTimeout(() => {
+        applyPerformanceMode();
+    }, 0);
 
     window.gameState.mapGenerated = true;
 }
@@ -187,6 +220,41 @@ AFRAME.registerComponent('end-room-trigger', {
         if (distanceXZ <= this.data.radius) {
             this.hasTriggered = true;
             endGame();
+        }
+    }
+});
+
+AFRAME.registerComponent('fps-watchdog', {
+    schema: {
+        minFps: { type: 'number', default: 22 },
+        checkEveryMs: { type: 'number', default: 1500 }
+    },
+
+    init: function () {
+        this.samples = [];
+        this.lastCheck = 0;
+        this.lowModeApplied = false;
+    },
+
+    tick: function (time, delta) {
+        if (!delta || delta <= 0) return;
+
+        const fps = 1000 / delta;
+        this.samples.push(fps);
+
+        if (this.samples.length > 60) {
+            this.samples.shift();
+        }
+
+        if (time - this.lastCheck < this.data.checkEveryMs) return;
+        this.lastCheck = time;
+
+        const avg = this.samples.reduce((a, b) => a + b, 0) / this.samples.length;
+
+        if (avg < this.data.minFps && !this.lowModeApplied) {
+            //this.lowModeApplied = true;
+            console.warn(`[FPS Watchdog] FPS bajos detectados: ${avg.toFixed(1)}. Aplicando modo rendimiento.`);
+            //applyPerformanceMode();
         }
     }
 });

@@ -99,29 +99,4 @@ AFRAME.registerComponent('button', {
             this.data.target.emit(this.data.event);
         }
     },
-
-    /*interact: function () {
-
-        if (this.isPressed) return;
-
-        this.isPressed = true;
-        console.log("Botón pulsado");
-
-        
-        if (this.data.target) {
-            this.data.target.emit(this.data.event);
-        };
-
-        this.el.setAttribute('animation', {
-            property: 'position',
-            to: `${this.el.object3D.position.x} ${this.el.object3D.position.y - 0.1} ${this.el.object3D.position.z}`,
-            dur: 200,
-            easing: 'easeOutQuad'
-        });
-        this.el.components.sound.playSound();
-        
-
-        console.log("El botón ha emitido un evento");
-
-    }*/
 });

@@ -95,16 +95,6 @@ AFRAME.registerComponent('orb', {
             } else {
                 this.el.body.velocity.set(0, -0.1, 0);
             }
-
-            /*const camera = document.querySelector('[camera]');
-            const dir = new THREE.Vector3();
-            camera.object3D.getWorldDirection(dir);
-            dir.negate();
-
-            this.el.body.applyImpulse(
-                new CANNON.Vec3(dir.x * 3, dir.y * 3, dir.z * 3),
-                this.el.body.position
-            );*/
         }
     },
 
@@ -169,79 +159,4 @@ AFRAME.registerComponent('orb', {
             targetPos.z
         );*/
     }
-
-
-    /*interact: function () {
-        
-        if (window.playerState.hasOrb && window.playerState.currentOrb !== this.el) {
-            return;
-        }
-
-        if (!this.isCarried) {
-
-            this.isCarried = true;
-
-            console.log("Orbe agarrado");
-
-            window.playerState.hasOrb = true;
-            window.playerState.currentOrb = this.el;
-
-            console.warn("Para ver si el orbe tiene body:", this.el.body);
-            this.el.body.velocity.set(0, 0, 0);
-            this.el.body.angularVelocity.set(0, 0, 0);
-
-            // Lo emparentamos al jugador para que se mueva con él
-            // Si es PC, lo pegamos a la cámara. Si es VR, idealmente a la mano.
-            /*const holder = document.querySelector('#orb-holder');
-            holder.appendChild(this.el);
-
-            this.el.setAttribute('position', '0 0 0');
-            
-            // Posición relativa frente a la cara/mano
-            this.el.setAttribute('position', '0.3 -0.3 -0.5'); 
-            this.el.setAttribute('scale', '0.5 0.5 0.5'); // Lo hacemos un poco más pequeño al llevarlo*/
-        //}
-        /*else {
-
-            this.isCarried = false;
-
-            console.log("Orbe soltado");
-
-            window.playerState.hasOrb = false;
-
-            // Lo soltamos en la posición actual del jugador
-            const dir = new THREE.Vector3();
-            this.camera.object3D.getWorldDirection(dir);
-
-            this.el.body.applyImpulse(
-                new CANNON.Vec3(dir.x * 2, dir.y * 2, dir.z * 2), 
-                this.el.body.position
-            );
-        }
-    },
-
-    tick: function () {
-
-        if (!this.isCarried || window.playerState.currentOrb !== this.el) return;
-
-        // Actualizamos la posición del orbe para que siga la camara
-        const camWorldPos = new THREE.Vector3();
-        this.camera.object3D.getWorldPosition(camWorldPos);
-
-        // Calculamos la dirección hacia adelante de la cámara
-        const camWorldDir = new THREE.Vector3();
-        this.camera.object3D.getWorldDirection(camWorldDir);
-
-        const targetPos = camWorldPos.clone().add(camWorldDir.multiplyScalar(1)); // Posición a 1 metro frente a la cámara
-
-        const currentPos = new THREE.Vector3();
-        this.el.object3D.getWorldPosition(currentPos);
-
-        const force = new THREE.Vector3().subVectors(targetPos, currentPos);
-
-        this.el.body.applyForce(
-            new CANNON.Vec3(force.x * 10, force.y * 10, force.z * 10),
-            this.el.body.position
-        );
-    }*/
 });

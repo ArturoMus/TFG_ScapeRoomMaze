@@ -565,7 +565,7 @@ function createMemoryPuzzlePanel(room, roomSize = 10, options = {}) {
 
     const panel = document.createElement('a-box');
     panel.setAttribute('width', '2');
-    panel.setAttribute('height', '1.25');
+    panel.setAttribute('height', '1.55');
     panel.setAttribute('depth', '0.08');
     panel.setAttribute('position', '0 0 0');
     panel.setAttribute('material', {
@@ -580,10 +580,48 @@ function createMemoryPuzzlePanel(room, roomSize = 10, options = {}) {
     title.setAttribute('value', 'Memoriza el patron');
     title.setAttribute('align', 'center');
     title.setAttribute('width', '2.4');
-    title.setAttribute('position', '0 0.46 0.08');
+    title.setAttribute('position', '0 0.66 0.08');
     title.setAttribute('color', '#dddddd');
 
     puzzle.appendChild(title);
+
+    const startButton = document.createElement('a-box');
+    startButton.setAttribute('width', '1.15');
+    startButton.setAttribute('height', '0.22');
+    startButton.setAttribute('depth', '0.06');
+    startButton.setAttribute('position', '0 -0.58 0.1');
+    startButton.setAttribute('class', 'interactable');
+    startButton.setAttribute('interactable', '');
+    startButton.setAttribute('material', {
+        color: '#3a5f8f',
+        emissive: '#3a5f8f',
+        emissiveIntensity: 0.08
+    });
+
+    const startText = document.createElement('a-text');
+    startText.setAttribute('value', 'Mostrar patron');
+    startText.setAttribute('align', 'center');
+    startText.setAttribute('width', '1.8');
+    startText.setAttribute('position', '0 -0.035 0.05');
+    startText.setAttribute('color', '#ffffff');
+
+    startButton.appendChild(startText);
+
+    startButton.addEventListener('mouseenter', () => {
+        startButton.setAttribute('material', 'color', '#4f7fc0');
+    });
+
+    startButton.addEventListener('mouseleave', () => {
+        startButton.setAttribute('material', 'color', '#3a5f8f');
+    });
+
+    startButton.addEventListener('click', () => {
+        if (options.onStartClick) {
+            options.onStartClick();
+        }
+    });
+
+    puzzle.appendChild(startButton);
 
     const pads = [];
 
@@ -591,22 +629,22 @@ function createMemoryPuzzlePanel(room, roomSize = 10, options = {}) {
         {
             color: '#b83232',
             activeColor: '#ff5555',
-            position: '-0.45 0.12 0.09'
+            position: '-0.45 0.32 0.09'
         },
         {
             color: '#2e5aac',
             activeColor: '#5599ff',
-            position: '0.45 0.12 0.09'
+            position: '0.45 0.32 0.09'
         },
         {
             color: '#2f8f46',
             activeColor: '#55ff77',
-            position: '-0.45 -0.35 0.09'
+            position: '-0.45 -0.15 0.09'
         },
         {
             color: '#b8a132',
             activeColor: '#ffee55',
-            position: '0.45 -0.35 0.09'
+            position: '0.45 -0.15 0.09'
         }
     ];
 
@@ -659,6 +697,8 @@ function createMemoryPuzzlePanel(room, roomSize = 10, options = {}) {
     return {
         puzzle,
         pads,
+        startButton,
+        startText,
         transform
     };
 }

@@ -201,6 +201,8 @@ AFRAME.registerComponent('puzzle-memory-match', {
 
         this.isShowing = false;
         this.isSolved = false;
+        this.hasStarted = false;
+        this.canBePressed = false;
 
         this.doors = lockPuzzleDoors(this.data);
 
@@ -211,20 +213,21 @@ AFRAME.registerComponent('puzzle-memory-match', {
 
         const panelSetup = createMemoryPuzzlePanel(this.room, this.roomSize, {
             canHover: () => {
-                return !this.isShowing && !this.isSolved;
+                return this.canBePressed && !this.isShowing && !this.isSolved;
             },
             onPadClick: (index) => {
                 this.handlePadPress(index);
+            },
+            onStartClick: () => {
+                this.startPattern();
             }
         });
 
         this.pads = panelSetup.pads;
+        this.startButton = panelSetup.startButton;
+        this.startText = panelSetup.startText;
 
-        this.generateSequence();
-
-        setTimeout(() => {
-            this.showSequence();
-        }, 700);
+        console.log('[Memory] Esperando a que el jugador inicie el patrón');
     },
 
     generateSequence: function () {
@@ -241,6 +244,9 @@ AFRAME.registerComponent('puzzle-memory-match', {
     handlePadPress: function (index) {
         if (this.isSolved) return;
         if (this.isShowing) return;
+        if (!this.hasStarted) return;
+        if (!this.canBePressed) return;
+        if (this.sequence.length === 0) return;
 
         this.flashPad(index);
 
@@ -262,6 +268,7 @@ AFRAME.registerComponent('puzzle-memory-match', {
         if (this.isSolved) return;
 
         this.isShowing = true;
+        this.canBePressed = false;
         this.input = [];
 
         let delay = 400;
@@ -275,7 +282,15 @@ AFRAME.registerComponent('puzzle-memory-match', {
         });
 
         setTimeout(() => {
+            if (this.isSolved) return;
+
             this.isShowing = false;
+            this.canBePressed = true;
+
+            if (this.startText) {
+                this.startText.setAttribute('value', 'Reiniciar');
+            }
+
             console.log('[Memory] Turno del jugador');
         }, delay + 150);
     },
@@ -306,10 +321,13 @@ AFRAME.registerComponent('puzzle-memory-match', {
     },
 
     fail: function () {
-        console.log('[Memory] Patrón incorrecto. Reiniciando.');
+        console.log('[Memory] Patrón incorrecto. Esperando reintento.');
 
         this.input = [];
-        this.isShowing = true;
+        this.sequence = [];
+        this.isShowing = false;
+        this.hasStarted = false;
+        this.canBePressed = false;
 
         this.el.setAttribute('animation__memory_fail', {
             property: 'scale',
@@ -319,9 +337,26 @@ AFRAME.registerComponent('puzzle-memory-match', {
             loop: 2
         });
 
-        setTimeout(() => {
-            this.resetPuzzle();
-        }, 900);
+        if (this.startText) {
+            this.startText.setAttribute('value', 'Reintentar');
+        }
+    },
+
+    startPattern: function () {
+        if (this.isSolved) return;
+        if (this.isShowing) return;
+
+        this.hasStarted = true;
+        this.canBePressed = false;
+        this.input = [];
+
+        this.generateSequence();
+
+        if (this.startText) {
+            this.startText.setAttribute('value', 'Mira el patron');
+        }
+
+        this.showSequence();
     },
 
     resetPuzzle: function(){
