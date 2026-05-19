@@ -31,11 +31,25 @@ function sameCoord(a, b) {
     return a.x === b.x && a.z === b.z;
 }
 
-function shuffleArray(array) {
+function createSeededRandom(seed) {
+    let value = Number(seed) || Date.now();
+
+    return function () {
+        value |= 0;
+        value = value + 0x6D2B79F5 | 0;
+
+        let t = Math.imul(value ^ value >>> 15, 1 | value);
+        t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+
+        return ((t ^ t >>> 14) >>> 0) / 4294967296;
+    };
+}
+
+function shuffleArray(array, rng = Math.random) {
     const copy = [...array];
 
     for (let i = copy.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
+        const j = Math.floor(rng() * (i + 1));
         [copy[i], copy[j]] = [copy[j], copy[i]];
     }
 
@@ -66,7 +80,7 @@ function getGridNeighbors(coord, width, height) {
 // Generación del árbol del mapa
 // ============================================================
 
-function buildRandomSpanningTree(width, height, startCoord) {
+function buildRandomSpanningTree(width, height, startCoord, rng = Math.random) {
     const visited = new Set();
 
     const parentByRoom = {};
@@ -85,7 +99,7 @@ function buildRandomSpanningTree(width, height, startCoord) {
         visited.add(currentId);
         ensureChildren(currentId);
 
-        const neighbors = shuffleArray(getGridNeighbors(coord, width, height));
+        const neighbors = shuffleArray(getGridNeighbors(coord, width, height), rng);
 
         neighbors.forEach(neighbor => {
             const neighborId = coordId(neighbor);
@@ -166,6 +180,9 @@ function getRandomBetaMazePlan(config = {}) {
 
     const startCoord = config.start ?? { x: 0, z: 0 };
 
+    const seed = config.seed ?? Date.now();
+    const rng = createSeededRandom(seed);
+
     const layout = createFullLayout(width, height);
 
     const tree = buildRandomSpanningTree(width, height, startCoord);
@@ -174,6 +191,7 @@ function getRandomBetaMazePlan(config = {}) {
     const finalCoord = mainPathCoords[mainPathCoords.length - 1];
 
     return {
+        seed,
         layout,
         width,
         height,
@@ -192,10 +210,14 @@ function getRandomBetaMazePlan(config = {}) {
 
 AFRAME.registerComponent('map', {
     init: function () {
+
+        const mapSeed = Date.now();
+
         const progressionPlan = getRandomBetaMazePlan({
             width: 3,
             height: 3,
-            start: { x: 0, z: 0 }
+            start: { x: 0, z: 0 },
+            seed: mapSeed
         });
 
         const roomSize = 10;
@@ -209,6 +231,7 @@ AFRAME.registerComponent('map', {
         window.roomSize = roomSize;
         window.progressionPlan = progressionPlan;
         window.mainPathCoords = progressionPlan.mainPathCoords;
+        window.mapSeed = progressionPlan.seed;
 
         renderMap(rooms, roomSize);
 
@@ -216,6 +239,10 @@ AFRAME.registerComponent('map', {
         window.rebuildNavMesh = () => rebuildGeneratedNavMesh(rooms, roomSize);
 
         assignProgressionPuzzles(rooms, progressionPlan);
+
+        if (window.debugInitMap) {
+            window.debugInitMap(progressionPlan, rooms);
+        }
 
         createEndRoomTrigger?.(
             rooms,
@@ -602,8 +629,26 @@ function assignProgressionPuzzles(rooms, progressionPlan) {
             targetDoorIds
         );
 
+        room.puzzle = {
+            type,
+            targetDoorIds: [...targetDoorIds],
+            solved: false
+        };
+
+        targetDoors.forEach(door => {
+            if (!door.debugPuzzleRoomIds) {
+                door.debugPuzzleRoomIds = new Set();
+            }
+
+            door.debugPuzzleRoomIds.add(room.id);
+        });
+
         puzzleIndex++;
     });
+
+    if (window.debugSetPuzzleTotal) {
+        window.debugSetPuzzleTotal(puzzleIndex);
+    }
 }
 
 
