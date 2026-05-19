@@ -22,22 +22,8 @@ AFRAME.registerComponent('puzzle-button-door', {
         
         existingDoorPivot.components.door.isLocked = true;
 
-        // 2. Creamos el botón
-        const button = document.createElement('a-box');
-        button.setAttribute('id', room.getAttribute('id') + '-button');
-        button.setAttribute('position', '1 0.5 -4.5'); // Cerca de la pared norte
-        button.setAttribute('class', 'interactable');
-        button.setAttribute('depth', '0.2');
-        button.setAttribute('height', '0.3');
-        button.setAttribute('width', '0.3');
-        button.setAttribute('color', 'red');
-        
-        // Configuramos el botón para que dispare el evento a la puerta que encontramos
-        button.setAttribute('button', {
-            event: 'openDoor',
-            target: '#' + this.data.doorId
-        });
-        button.setAttribute('interactable', '');
+        // CONVERTIR A METODO EN ELEMENTS.JS!!!!!!!!!!
+        const button = createButton('1 1 -3', this.data.doorId, room);
         room.appendChild(button);
         
     }
@@ -69,17 +55,44 @@ AFRAME.registerComponent('puzzle-orb-pedestal', {
 
         // 2. Crear Orbe en la sala anterior (posicionado de forma que se vea)
         if (prevRoom) {
-            const orb = createOrb('0 1.2 0'); 
+            const orb = createOrb('0 1.6 0'); 
+            orb.setAttribute('data-puzzle-id', this.data.doorId); // asociamos el orbe con la puerta que abre
             prevRoom.appendChild(orb);
         }
 
         // 3. Crear Pedestal en la sala actual
         // El pedestal le pasa el ID de la puerta que debe abrir
-        const pedestal = createPedestal('0 0 -4', this.data.doorId);
+        const pedestal = createPedestal('0 0 0', this.data.doorId);
         currentRoom.appendChild(pedestal);
     }
 });
 
+AFRAME.registerComponent('puzzle-pressure-plate', {
+    schema: {
+        doorId: { type: 'string' }
+    },
+
+    init: function () {
+
+        const room = this.el;
+
+        const door = document.querySelector('#' + this.data.doorId);
+        if (!door) {
+            console.warn("No se encontró la puerta:", this.data.doorId);
+            return;
+        }
+
+        door.components.door.isLocked = true;
+
+        const plate = createPressurePlate('0 0 -2', this.data.doorId);
+        room.appendChild(plate);
+
+        const box = createTestBox('1 1 -2', this.data.doorId);
+        room.appendChild(box);
+    }
+});
+//acabar esta funcion
+function checkDoorPivotExists(doorId) {}
 /*AFRAME.registerComponent('puzzle-button-door', {
     init: function () {
         const room = this.el;

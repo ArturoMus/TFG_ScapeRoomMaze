@@ -2,15 +2,41 @@
 AFRAME.registerComponent('interactable', {
     init: function () {
 
-        this.el.addEventListener('click', () => {
+        this.lastInteractTime = 0;
+
+        const handler = (evt) => {
+            const now = performance.now();
+            if (now - this.lastInteractTime < 250) return; // bloqueo anti doble input
+            this.lastInteractTime = now;
+
+            this.tryInteract(evt);
+        };
+
+        // Este modo es para pc
+        this.el.addEventListener('click', (evt) => {
             console.log("CLICK detectado en:", this.el);
+            handler(evt);
+        });
+
+        // Para vr (super-hands usa estos eventos)
+        this.el.addEventListener('grab-start', (evt) => {
+            handler(evt);
+        });
+
+        // Si luego usara raycasters en vr
+        this.el.addEventListener('triggerdown', (evt) => {
+            handler(evt);
+        });
+    },
+
+    tryInteract: function (evt) {
             let currentEl = this.el;
             while (currentEl) {
                 console.log("Revisando:", currentEl);
                 for (let compName in currentEl.components) {
                     let comp = currentEl.components[compName];
                     if (typeof comp.interact === 'function') {
-                        comp.interact();
+                        comp.interact(evt);
                         return;
                     }
                 }
@@ -18,7 +44,6 @@ AFRAME.registerComponent('interactable', {
             }
             // fallback
             this.defaultInteract();
-        });
     },
 
     defaultInteract: function () {

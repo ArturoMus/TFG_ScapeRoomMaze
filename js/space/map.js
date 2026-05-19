@@ -89,14 +89,16 @@ function assignPuzzlesPremium(rooms) {
         door.hasPuzzle = true;
         currentRoom.puzzleDoor = door; // Mantenemos la referencia por si acaso
 
-        if (i % 2 === 0) {
+        const type = i % 3
+
+        if (type === 0) {
             // PUZZLE DE BOTÓN
             currentRoom.el.setAttribute('puzzle-button-door', {
                 doorId: door.el.id,
             });
             console.log(`[Botón] Sala ${currentRoom.id} abre ${door.el.id}`);
         } 
-        else {
+        else if (type === 1) {
             // PUZZLE DE ORBE + PEDESTAL
             // El orbe se spawnea en la sala anterior (pathCoords[i-1])
             const prevRoomCoords = pathCoords[i-1];
@@ -108,7 +110,13 @@ function assignPuzzlesPremium(rooms) {
             });
             console.log(`[Orbe] Sala ${currentRoom.id} necesita orbe de ${prevRoomId} para abrir ${door.el.id}`);
         }
+        else if (type === 2) {
+            currentRoom.el.setAttribute('puzzle-pressure-plate', {
+                doorId: door.el.id,
+            });
 
+            console.log(`[Placa] Sala ${currentRoom.id} usa caja para abrir ${door.el.id}`);
+        }
         console.log(`[Puzzle] Sala ${currentRoom.id} abre puerta ${directionToNext} (${door.el.id})`);
     }
 

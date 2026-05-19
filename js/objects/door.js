@@ -12,6 +12,10 @@ AFRAME.registerComponent('door', {
         this.isLocked = true;
         this.hasPuzzle = false;
 
+        this.progress = 0;
+        this.isBeingActivated = false;
+        this.isFullyOpen = false;
+
         const pos = this.el.getAttribute('position');
         this.initialPos = { x: pos.x, y: pos.y, z: pos.z };
 
@@ -27,6 +31,16 @@ AFRAME.registerComponent('door', {
         
         this.el.addEventListener('openDoor', () => {
             this.unlock();
+        });
+
+        this.el.addEventListener('activateDoor', () => {
+            if (this.isFullyOpen) return;
+            this.isBeingActivated = true;
+        });
+
+        this.el.addEventListener('closeDoor', () => {
+            if (this.isFullyOpen) return;
+            this.isBeingActivated = false;
         });
     },
 
@@ -76,6 +90,42 @@ AFRAME.registerComponent('door', {
         this.isLocked = false;
         console.log("La puerta ha sido desbloqueada.");
         this.toggleDoor(); // Abrir la puerta al desbloquearla
+    },
+
+    // Tengo que añadir los metodos para la placa de presión
+    tick: function (time, delta) {
+
+        // si no hay nada activando entonces no hace nada
+        if (!this.isBeingActivated && this.progress <= 0) return;
+
+        // si ya ha terminado entonces no hace nada
+        if (this.isFullyOpen) return;
+
+        const speed = 0.0002 * delta;
+
+        if (this.isBeingActivated) {
+            this.progress += speed;
+        } else {
+            this.progress -= speed;
+        }
+
+        this.progress = Math.max(0, Math.min(1, this.progress));
+
+        const newY = this.initialPos.y - 3 * this.progress;
+
+        this.el.object3D.position.y = newY;
+
+        if (this.progress >= 1) {
+            this.isFullyOpen = true;
+            this.isLocked = false;
+
+            if (this.el.colliderRef) {
+                this.el.colliderRef.disabled = true;
+            }
+
+            // EMITIR UN SONIDO PORFA
+            console.log("Puerta completamente abierta (pressure plate)");
+        }
     }
-    
+
 });

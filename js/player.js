@@ -133,3 +133,44 @@ AFRAME.registerComponent('player-controls', {
         }
     }*/
 });
+
+AFRAME.registerComponent('hand-controller', {
+    init: function () {
+
+        this.heldEntity = null;
+
+        this.el.addEventListener('click', () => {
+            if (this.heldEntity) {
+                this.release();
+            }
+            else {
+                this.grab();
+            }
+        });
+    },
+
+    grab: function () {
+        const raycaster = this.el.components.raycaster;
+        if (!raycaster) return;
+
+        const intersected = raycaster.intersectedEl;
+
+        if(!intersected || intersected.length === 0) return;
+
+        const target = intersected[0];
+
+        // Por ahora solo lo hago con el orbe, pa probar
+        if(!target.components.orb) return;
+
+        this.heldEntity = target;
+        target.components.orb.grab(this.el);
+    },
+
+    release: function () {
+        if (!this.heldEntity) return;
+
+        // Lo mismo, por ahora solo con el orbe
+        this.heldEntity.components.orb.release(this.el);
+        this.heldEntity = null;
+    }
+});
