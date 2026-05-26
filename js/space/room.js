@@ -140,13 +140,6 @@ function createWall(position, size) {
         receive: true
     });
 
-    colliders.push({
-        el: wall,
-        width: w,
-        depth: d,
-        disabled: false
-    });
-
     return wall;
 }
 

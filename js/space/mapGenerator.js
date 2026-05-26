@@ -156,12 +156,11 @@ function getRandomBetaMazePlan(config = {}) {
     const startCoord = config.start ?? { x: 0, z: 0 };
 
     const seed = config.seed ?? Date.now();
-
     const rng = createSeededRandom(seed);
 
     const layout = createFullLayout(width, height);
 
-    const tree = buildRandomSpanningTree(width, height, startCoord, rng);
+    const tree = buildRandomSpanningTree(width, height, startCoord);
 
     const mainPathCoords = findFarthestPathFromStart(tree, startCoord);
     const finalCoord = mainPathCoords[mainPathCoords.length - 1];

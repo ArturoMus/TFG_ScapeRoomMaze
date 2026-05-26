@@ -37,15 +37,6 @@ function edgeKeyFromCoords(a, b) {
     return [idA, idB].sort().join('|');
 }
 
-function createConnectionsFromPath(pathCoords) {
-    const connections = new Set();
-
-    for (let i = 0; i < pathCoords.length - 1; i++) {
-        connections.add(edgeKeyFromCoords(pathCoords[i], pathCoords[i + 1]));
-    }
-
-    return connections;
-}
 
 function isConnectionAllowed(allowedConnections, room, neighbor) {
     if (!allowedConnections) return true;
