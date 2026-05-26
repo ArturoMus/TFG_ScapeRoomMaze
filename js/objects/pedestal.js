@@ -92,6 +92,13 @@ AFRAME.registerComponent('pedestal', {
         console.log("Orbe en posición del pedestal:", orb.object3D.position);
         console.log("Posición del pedestal:", worldPos);
 
+        window.telemetry?.track('orb_placed', {
+            pedestalId: this.el.id || null,
+            orbId: orb.id || null,
+            puzzleID: this.data.puzzleID || null,
+            targets: this.data.targets || null
+        });
+
         //El orbe ya no es interactuable
         orb.removeAttribute('interactable');
         orb.classList.remove('interactable');

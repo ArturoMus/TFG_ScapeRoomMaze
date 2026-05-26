@@ -19,7 +19,7 @@ AFRAME.registerComponent('interactable', {
             handler(evt);
         });
 
-        // Para vr (super-hands usa estos eventos)
+        // Para vr
         this.el.addEventListener('grab-start', (evt) => {
             handler(evt);
         });

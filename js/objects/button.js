@@ -44,6 +44,12 @@ AFRAME.registerComponent('button', {
 
         console.log("Botón empujado");
 
+        window.telemetry?.track('button_pressed', {
+            buttonId: this.el.id || null,
+            target: this.data.target || null,
+            targets: this.data.targets || null
+        });
+
         const targetPos = this.initialPos.clone().add(
             new THREE.Vector3(
                 this.data.pressOffset.x,

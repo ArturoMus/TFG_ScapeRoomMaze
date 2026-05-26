@@ -60,6 +60,10 @@ window.startGameFromMenu = function () {
     window.gameState.started = true;
     window.gameState.startTime = performance.now();
 
+    window.telemetry?.track('start_button_pressed', {
+        source: 'main_menu'
+    });
+
     const mainMenu = document.querySelector('#main-menu');
     const loadingScreen = document.querySelector('#loading-screen');
 
@@ -105,6 +109,9 @@ function endGame() {
 
     window.gameState.finished = true;
     window.gameState.endTime = performance.now();
+
+    window.telemetry?.track('final_room_reached');
+    window.telemetry?.finishRun('completed');
 
     console.log("Juego terminado");
 

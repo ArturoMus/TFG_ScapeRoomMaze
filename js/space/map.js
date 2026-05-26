@@ -11,6 +11,8 @@
  * - Si una sala del camino principal tiene deadends, su puzzle abre la entrada a esos deadends,
  *   y el último puzzle del deadend abre la puerta principal bloqueada.
  * - Si una sala no tiene deadend, su puzzle abre la siguiente puerta de progresión.
+ * 
+ * REVISAR MUY BIEN TODAS LSA CLASES DE ESTA CARPETA
  */
 
 
@@ -217,6 +219,15 @@ AFRAME.registerComponent('map', {
 
         assignProgressionPuzzles(rooms, progressionPlan);
 
+<<<<<<< Updated upstream
+=======
+        if (window.debugInitMap) {
+            window.debugInitMap(progressionPlan, rooms);
+        }
+
+        window.telemetry?.startRun();
+
+>>>>>>> Stashed changes
         createEndRoomTrigger?.(
             rooms,
             progressionPlan.mainPathCoords,

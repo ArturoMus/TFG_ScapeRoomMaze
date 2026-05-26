@@ -104,6 +104,12 @@ AFRAME.registerComponent('desktop-grabber', {
             return;
         }
 
+        window.telemetry?.track('object_grabbed', {
+            objectId: el.id || null,
+            objectType: getTelemetryObjectType(el),
+            controller: 'desktop'
+        });
+
         console.log('[desktop-grabber] Objeto cogido:', el);
     },
 
@@ -126,6 +132,20 @@ AFRAME.registerComponent('desktop-grabber', {
         else if (el.components.box) {
             el.components.box.release(options);
         }
+
+        window.telemetry?.track('object_released', {
+            objectId: el.id || null,
+            objectType: getTelemetryObjectType(el),
+            controller: 'desktop',
+            thrown: shouldThrow === true,
+            velocity: velocity
+                ? {
+                    x: Number(velocity.x.toFixed(3)),
+                    y: Number(velocity.y.toFixed(3)),
+                    z: Number(velocity.z.toFixed(3))
+                }
+                : null
+        });
 
         this.heldEl = null;
 

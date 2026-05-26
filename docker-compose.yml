@@ -1,0 +1,70 @@
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: tfg_ldm_backend
+    ports:
+      - "3000:3000"
+    environment:
+      PORT: 3000
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_USER: tfg_user
+      DB_PASSWORD: tfg_password
+      DB_NAME: tfg_ldm
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+    command: npm run dev
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - tfg_network
+
+  db:
+    image: mariadb:11
+    container_name: tfg_ldm_mariadb
+    restart: unless-stopped
+    environment:
+      MARIADB_ROOT_PASSWORD: root_password
+      MARIADB_DATABASE: tfg_ldm
+      MARIADB_USER: tfg_user
+      MARIADB_PASSWORD: tfg_password
+    ports:
+      - "3307:3306"
+    volumes:
+      - mariadb_data:/var/lib/mysql
+      - ./backend/src/db/schema.sql:/docker-entrypoint-initdb.d/001-schema.sql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - tfg_network
+
+  phpmyadmin:
+    image: phpmyadmin:latest
+    container_name: tfg_ldm_phpmyadmin
+    restart: unless-stopped
+    ports:
+      - "8081:80"
+    environment:
+      PMA_HOST: db
+      PMA_PORT: 3306
+      PMA_USER: tfg_user
+      PMA_PASSWORD: tfg_password
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - tfg_network
+
+volumes:
+  mariadb_data:
+
+networks:
+  tfg_network:
+    driver: bridge

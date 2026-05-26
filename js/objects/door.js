@@ -91,6 +91,10 @@ AFRAME.registerComponent('door', {
 
         this.isOpen = true;
 
+        window.telemetry?.track('door_opened', {
+            doorId: this.el.id || null
+        });
+
         if (this.el.doorData) {
             this.el.doorData.isOpen = true;
         }
@@ -158,6 +162,10 @@ AFRAME.registerComponent('door', {
             this.isFullyOpen = true;
             this.isLocked = false;
             this.isOpen = true;
+
+            window.telemetry?.track('door_opened', {
+                doorId: this.el.id || null
+            });
 
             if(this.el.doorData){
                 this.el.doorData.isOpen = true;

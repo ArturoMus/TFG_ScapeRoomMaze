@@ -106,6 +106,15 @@ AFRAME.registerComponent('vr-grabber', {
             this.heldEl = target;
             target.components.box.grab(this.el);
         }
+        else {
+            return;
+        }
+
+        window.telemetry?.track('object_grabbed', {
+            objectId: target.id || null,
+            objectType: getTelemetryObjectType(target),
+            controller: this.el.id || 'vr-controller'
+        });
     },
 
     release: function (throwObject = true) {
@@ -125,12 +134,26 @@ AFRAME.registerComponent('vr-grabber', {
             velocity: throwObject ? releaseVelocity : null
         };
 
-        if (this.heldEl.components.orb) {
-            this.heldEl.components.orb.release(options);
+        if (releasedEl.components.orb) {
+            releasedEl.components.orb.release(options);
         }
-        else if (this.heldEl.components.box) {
-            this.heldEl.components.box.release(options);
+        else if (releasedEl.components.box) {
+            releasedEl.components.box.release(options);
         }
+
+        window.telemetry?.track('object_released', {
+            objectId: releasedEl.id || null,
+            objectType: getTelemetryObjectType(releasedEl),
+            controller: this.el.id || 'vr-controller',
+            thrown: throwObject === true,
+            velocity: throwObject
+                ? {
+                    x: Number(releaseVelocity.x.toFixed(3)),
+                    y: Number(releaseVelocity.y.toFixed(3)),
+                    z: Number(releaseVelocity.z.toFixed(3))
+                }
+                : null
+        });
 
         this.heldEl = null;
     }

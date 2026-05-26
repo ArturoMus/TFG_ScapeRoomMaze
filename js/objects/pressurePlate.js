@@ -10,23 +10,15 @@ AFRAME.registerComponent('pressure-plate', {
     },
 
     init: function () {
-        /*pressingBodies = new Set();
         this.isPressed = false;
-        this.initialPos = this.el.object3D.position.clone()
-
-        this.el.addEventListener('collide', (e) => {
-            this.pressingBodies.add(e.detail.body);
-            //aqui se puede añadir filtraje de elementos no validos
-            
-        });
-        this.el.addEventListener('collideend', (e) => {
-            this.pressingBodies.delete(e.detail.body);
-        });*/
-        this.isPressed = false;
+        this.telemetryPressed = false;
         this.initialPos = this.el.object3D.position.clone();
 
         this.plateWorldPos = new THREE.Vector3();
         this.objectWorldPos = new THREE.Vector3();
+
+        this.currentPressingObject = null;
+        this.lastPressingObject = null;
     },
 
     tick: function () {
@@ -76,6 +68,7 @@ AFRAME.registerComponent('pressure-plate', {
     },
 
     isAnyPuzzleObjectOnPlate: function () {
+        this.currentPressingObject = null;
         this.el.object3D.getWorldPosition(this.plateWorldPos);
 
         const plateWidth = parseFloat(this.el.getAttribute('width')) || 1.2;
@@ -127,6 +120,7 @@ AFRAME.registerComponent('pressure-plate', {
                 objectBottomY <= this.plateWorldPos.y + this.data.maxActivationHeight;
 
             if (insideX && insideZ && closeToPlateY) {
+                this.currentPressingObject = objEl;
                 return true;
             }
         }
@@ -138,8 +132,24 @@ AFRAME.registerComponent('pressure-plate', {
         this.isPressed = true;
         console.log("Placa de presión activada");
 
-        // Ahora cambiar color, luego ver que hacer
-        //this.el.setAttribute('color', 'green');
+        const pressingObject = this.currentPressingObject;
+        this.lastPressingObject = pressingObject;
+
+        if (!this.telemetryPressed) {
+            this.telemetryPressed = true;
+
+            window.telemetry?.track('pressure_plate_pressed', {
+                plateId: this.el.id || null,
+                objectId: pressingObject?.id || null,
+                objectType: pressingObject?.components?.box
+                    ? 'box'
+                    : pressingObject?.components?.orb
+                        ? 'orb'
+                        : 'unknown',
+                targets: this.data.targets || null,
+                target: this.data.target?.id || null
+            });
+        }
 
         //Reinicio animaciones        
         this.el.removeAttribute('animation__press');
@@ -157,11 +167,26 @@ AFRAME.registerComponent('pressure-plate', {
 
     released: function () {
 
-        this.isPressed = false;
-        console.log("Placa de presión desactivada");
+        const releasedObject = this.lastPressingObject;
 
-        // Ahora cambiar color, luego ver que hacer
-        //this.el.setAttribute('color', 'red');
+        this.isPressed = false;
+        this.telemetryPressed = false;
+        this.currentPressingObject = null;
+        this.lastPressingObject = null;
+
+        window.telemetry?.track('pressure_plate_released    ', {
+                plateId: this.el.id || null,
+                objectId: releasedObject?.id || null,
+                objectType: releasedObject?.components?.box
+                    ? 'box'
+                    : releasedObject?.components?.orb
+                        ? 'orb'
+                        : 'unknown',
+                targets: this.data.targets || null,
+                target: this.data.target?.id || null
+        });
+
+        console.log("Placa de presión desactivada");
 
         //Reinicio animaciones
         this.el.removeAttribute('animation__release');

@@ -11,10 +11,24 @@
     <script src="https://unpkg.com/super-hands@^4.0.3/dist/super-hands.min.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-physics-system@v4.2.4/dist/aframe-physics-system.min.js"></script>
 
+<<<<<<< Updated upstream
     <script src="js/player.js"></script>
     <script src="js/interaction.js"></script>
     <script src="js/grabber.js"></script>
     <script src="js/desktopGrabber.js"></script>
+=======
+
+    <!--  Comunicación frontetnd - backend  -->
+    <script src="js/telemetry.js"></script>
+
+    <!--  Interacciones  -->
+    <script src="js/interaction/interaction.js"></script>
+    <script src="js/interaction/grabber.js"></script>
+    <script src="js/interaction/desktopGrabber.js"></script>
+    <script src="js/interaction/interactionUtils.js"></script>
+
+    <!--  Objectos  -->
+>>>>>>> Stashed changes
     <script src="js/objects/door.js"></script>
     <script src="js/objects/button.js"></script>
     <script src="js/space/graph.js"></script>
@@ -34,6 +48,7 @@
 </head>
 <body>
 
+<<<<<<< Updated upstream
     <!--<div id="overlay" style="
         position: fixed;
         top: 0;
@@ -54,6 +69,9 @@
     </div> -->
 
     <a-scene shadow="type: pcfsoft" light="defaultLightsEnabled: false" physics="debug: false; gravity: -9.8">
+=======
+    <a-scene telemetry-room-tracker="checkEveryMs: 500" fps-watchdog shadow="type: pcfsoft" light="defaultLightsEnabled: false" physics="debug: false; gravity: -9.8">
+>>>>>>> Stashed changes
 
         <!-- <a-sphere id="prueba_bola" position="0 1 -3" radius="0.5" color="#EF2D5E" dynamic-body></a-sphere> -->
         <a-assets>
