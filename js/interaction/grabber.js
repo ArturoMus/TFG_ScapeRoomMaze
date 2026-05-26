@@ -120,6 +120,8 @@ AFRAME.registerComponent('vr-grabber', {
     release: function (throwObject = true) {
         if (!this.heldEl) return;
 
+        const releasedEl = this.heldEl;
+
         const releaseVelocity = this.handVelocity
             ? this.handVelocity.clone()
             : new THREE.Vector3();

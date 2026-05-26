@@ -140,7 +140,7 @@ AFRAME.registerComponent('pressure-plate', {
         this.currentPressingObject = null;
         this.lastPressingObject = null;
 
-        window.telemetry?.track('pressure_plate_released    ', {
+        window.telemetry?.track('pressure_plate_released', {
                 plateId: this.el.id || null,
                 objectId: releasedObject?.id || null,
                 objectType: releasedObject?.components?.box

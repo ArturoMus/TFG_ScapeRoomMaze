@@ -138,6 +138,7 @@ function createPedestal(position, doorSelector, options = {}) {
 
     const base = document.createElement('a-cylinder');
 
+    base.setAttribute('id', options.id);
     base.setAttribute('position', position);
     base.setAttribute('radius', '0.3');
     base.setAttribute('height', '1');
@@ -200,6 +201,7 @@ function createCamouflagedPressurePlate(room, doorSelector, roomSize = 10) {
         }
     });
 
+    const roomId = room.getAttribute('id');
     plate.setAttribute('id', `${roomId}-pressure-plate`);
 
     const boxPos = getObjectSpawnAwayFromPoint(platePos, roomSize, {
@@ -208,7 +210,7 @@ function createCamouflagedPressurePlate(room, doorSelector, roomSize = 10) {
     });
 
     console.log(
-        `Placa camuflada en ${room.getAttribute('id')}, posición ${platePos.x.toFixed(2)} ${platePos.z.toFixed(2)}`
+        `Placa camuflada en ${roomId}, posición ${platePos.x.toFixed(2)} ${platePos.z.toFixed(2)}`
     );
 
     console.log(

@@ -46,7 +46,7 @@ AFRAME.registerComponent('button', {
 
         window.telemetry?.track('button_pressed', {
             buttonId: this.el.id || null,
-            target: this.data.target || null,
+            target: this.data.target?.id || null,
             targets: this.data.targets || null
         });
 
