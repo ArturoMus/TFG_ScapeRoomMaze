@@ -219,15 +219,12 @@ AFRAME.registerComponent('map', {
 
         assignProgressionPuzzles(rooms, progressionPlan);
 
-<<<<<<< Updated upstream
-=======
         if (window.debugInitMap) {
             window.debugInitMap(progressionPlan, rooms);
         }
 
         window.telemetry?.startRun();
 
->>>>>>> Stashed changes
         createEndRoomTrigger?.(
             rooms,
             progressionPlan.mainPathCoords,

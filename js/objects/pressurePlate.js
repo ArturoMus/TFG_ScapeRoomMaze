@@ -22,40 +22,6 @@ AFRAME.registerComponent('pressure-plate', {
     },
 
     tick: function () {
-        /*const platePos = new THREE.Vector3();
-        this.el.object3D.getWorldPosition(platePos);
-
-        let stillPressing = false;
-
-        this.pressingBodies.forEach(body => {
-            if (!body.el) return;
-
-            const bodyPos = new THREE.Vector3(
-                body.position.x,
-                body.position.y,
-                body.position.z
-            );
-
-            const distance = platePos.distanceTo(bodyPos);
-
-            // Ajusta este valor según tamaño de placa
-            if (distance < 0.6) {
-                stillPressing = true;
-            }
-            if (distance > 1.5) {
-                this.pressingBodies.delete(body);
-            }
-        });
-
-        const pressing = this.pressingBodies.size > 0;
-
-        if (pressing && !this.isPressed) {
-            this.pressed();
-        }
-
-        if (!pressing && this.isPressed) {
-            this.released();
-        }*/
         const pressing = this.isAnyPuzzleObjectOnPlate();
 
         if (pressing && !this.isPressed) {

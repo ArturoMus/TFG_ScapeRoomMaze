@@ -112,19 +112,7 @@ AFRAME.registerComponent('door', {
             easing: 'easeOutQuad'
         });
         window.rebuildNavMesh?.();
-        
-
-        // Calculamos la nueva rotación en el eje Y
-        /*const newY = this.isOpen 
-            ? this.initialRotation.y + this.data.openRotation 
-            : this.initialRotation.y;*/
-
-        // Aplicamos manteniendo X y Z originales
-        /*this.el.setAttribute('rotation', {
-            x: this.initialRotation.x,
-            y: newY,
-            z: this.initialRotation.z
-        });*/
+    
 
         console.log("Puerta interactuada, estado:", this.isOpen ? "Abierta" : "Cerrada");
     },
