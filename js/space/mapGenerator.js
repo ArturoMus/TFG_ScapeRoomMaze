@@ -7,6 +7,17 @@ function parseCoordId(id) {
     return { x, z };
 }
 
+function shuffleArray(array, rng = Math.random) {
+    const copy = [...array];
+
+    for (let i = copy.length - 1; i > 0; i--) {
+        const j = Math.floor(rng() * (i + 1));
+        [copy[i], copy[j]] = [copy[j], copy[i]];
+    }
+
+    return copy;
+}
+
 function createSeededRandom(seed) {
     let value = Number(seed) || Date.now();
 
@@ -21,15 +32,24 @@ function createSeededRandom(seed) {
     };
 }
 
-function shuffleArray(array, rng = Math.random) {
-    const copy = [...array];
+function createMapConfig(options = {}) {
+    return {
+        width: options.width ?? 3,
+        height: options.height ?? 3,
 
-    for (let i = copy.length - 1; i > 0; i--) {
-        const j = Math.floor(rng() * (i + 1));
-        [copy[i], copy[j]] = [copy[j], copy[i]];
-    }
+        start: options.start ?? { x: 0, z: 0 },
 
-    return copy;
+        seed: options.seed ?? Date.now(),
+
+        algorithm: options.algorithm ?? 'spanning-tree',
+        difficulty: options.difficulty ?? 'normal', // NO SE SI TERMINARÉ IMPLEMENTANDO DIFICULTAD
+
+        roomSize: options.roomSize ?? 10,
+
+        //loopChance: options.loopChance ?? 0, POR SI QUISIERA HACER LOOPS PERONO CREO
+        minMainPathLength: options.minMainPathLength ?? 4,
+        maxGenerationAttempts: options.maxGenerationAttempts ?? 30
+    };
 }
 
 function createFullLayout(width, height) {
@@ -49,6 +69,56 @@ function getGridNeighbors(coord, width, height) {
     return candidates.filter(c => {
         return c.x >= 0 && c.x < width && c.z >= 0 && c.z < height;
     });
+}
+
+function calculateMapMetrics(progressionPlan) {
+    const tree = progressionPlan.tree;
+    const mainPathCoords = progressionPlan.mainPathCoords;
+
+    const allRoomIds = new Set();
+
+    Object.keys(tree.childrenByRoom).forEach(id => {
+        allRoomIds.add(id);
+
+        const children = tree.childrenByRoom[id] || [];
+        children.forEach(child => allRoomIds.add(child));
+    });
+
+    const mainPathIds = new Set(mainPathCoords.map(coordId));
+
+    const branchRoomIds = [...allRoomIds].filter(id => {
+        return !mainPathIds.has(id);
+    });
+
+    const deadEndIds = [...allRoomIds].filter(id => {
+        const children = tree.childrenByRoom[id] || [];
+        return children.length === 0 && !mainPathIds.has(id);
+    });
+
+    const branchRoots = new Set();
+
+    branchRoomIds.forEach(roomId => {
+        const parentId = tree.parentByRoom[roomId];
+
+        if (parentId && mainPathIds.has(parentId)) {
+            branchRoots.add(parentId);
+        }
+    });
+
+    return {
+        algorithm: progressionPlan.algorithm,
+        difficulty: progressionPlan.difficulty,
+
+        roomCount: allRoomIds.size,
+        doorCount: progressionPlan.allowedConnections.size,
+
+        mainPathLength: mainPathCoords.length,
+        branchRoomCount: branchRoomIds.length,
+        branchCount: branchRoots.size,
+        deadEndCount: deadEndIds.length,
+
+        loopCount: 0
+    };
 }
 
 // ============================================================
@@ -150,30 +220,52 @@ function findFarthestPathFromStart(tree, startCoord) {
 }
 
 function getRandomBetaMazePlan(config = {}) {
-    const width = config.width ?? 3;
-    const height = config.height ?? 3;
+    
+    const mapConfig = createMapConfig(config);
 
-    const startCoord = config.start ?? { x: 0, z: 0 };
+    const width = mapConfig.width;
+    const height = mapConfig.height;
+    const startCoord = mapConfig.start;
+    const seed = mapConfig.seed;
 
-    const seed = config.seed ?? Date.now();
     const rng = createSeededRandom(seed);
 
     const layout = createFullLayout(width, height);
 
-    const tree = buildRandomSpanningTree(width, height, startCoord);
+    let tree;
+
+    if (mapConfig.algorithm === 'spanning-tree') {
+        tree = buildRandomSpanningTree(width, height, startCoord, rng);
+    } else {
+        console.warn(
+            `[MapGenerator] Algoritmo desconocido "${mapConfig.algorithm}". Usando spanning-tree.`
+        );
+
+        tree = buildRandomSpanningTree(width, height, startCoord, rng);
+    }
 
     const mainPathCoords = findFarthestPathFromStart(tree, startCoord);
     const finalCoord = mainPathCoords[mainPathCoords.length - 1];
 
-    return {
+    const progressionPlan = {
         seed,
+        algorithm: mapConfig.algorithm,
+        difficulty: mapConfig.difficulty,
+
+        config: mapConfig,
+
         layout,
         width,
         height,
         startCoord,
         finalCoord,
         mainPathCoords,
+
         allowedConnections: tree.edges,
         tree
     };
+
+    progressionPlan.metrics = calculateMapMetrics(progressionPlan);
+
+    return progressionPlan;
 }

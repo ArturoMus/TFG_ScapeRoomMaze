@@ -8,11 +8,14 @@ window.telemetry = {
     pendingEvents: [],
     lastRoomId: null,
 
+    // Devuelve el tiempo desde que empezó la partida en ms
     getElapsedMs() {
         if (!window.gameState?.startTime) return 0;
         return Math.floor(performance.now() - window.gameState.startTime);
     },
 
+    // Sirve para calcular en que sala está actualmente el jugador
+    // Obtiene posición global del jugador y busca la hab más cercana
     getCurrentRoomId() {
         const player = document.querySelector('#player');
 
@@ -44,6 +47,7 @@ window.telemetry = {
         return bestRoom?.id || null;
     },
 
+    // Sirve para contar cuantas puertas únicas hay, evitando contar dos veces puertas compartidas entre salas
     getUniqueDoors() {
         if (!window.rooms) return [];
 
@@ -62,6 +66,7 @@ window.telemetry = {
         return doors;
     },
 
+    // Calcula la cantidad de puzzles de cada tipo que hay en el mapa
     getPuzzleDistribution() {
         if (!window.rooms) return {};
 
@@ -78,6 +83,8 @@ window.telemetry = {
         return distribution;
     },
 
+    // Cuenta el número de salas que solo son una puerta y no son la final
+    // Callejones sin salida vaya
     getDeadEndCount() {
         if (!window.rooms) return 0;
 
@@ -87,6 +94,9 @@ window.telemetry = {
         }).length;
     },
 
+
+    // Construye el objeto con toda la información del mapa que se enviará al backend al crear la partida: 
+    // seed, tamaño, algoritmo, métricas, camino principal, sala final y distribución de puzzles.
     buildMapPayload() {
         const plan = window.progressionPlan || {};
         const rooms = window.rooms || {};
@@ -94,19 +104,36 @@ window.telemetry = {
 
         return {
             seed: window.mapSeed || plan.seed || null,
+
+            algorithm: plan.algorithm || plan.config?.algorithm || null,
+            difficulty: plan.difficulty || plan.config?.difficulty || null,
+
             width: plan.width || null,
             height: plan.height || null,
-            roomCount: Object.keys(rooms).length,
-            doorCount: doors.length,
-            deadendCount: this.getDeadEndCount(),
+
+            roomCount: plan.metrics?.roomCount ?? Object.keys(rooms).length,
+            doorCount: plan.metrics?.doorCount ?? doors.length,
+            deadendCount: plan.metrics?.deadEndCount ?? this.getDeadEndCount(),
+
+            mainPathLength: plan.metrics?.mainPathLength ?? null,
+            branchCount: plan.metrics?.branchCount ?? null,
+            branchRoomCount: plan.metrics?.branchRoomCount ?? null,
+            loopCount: plan.metrics?.loopCount ?? 0,
+
             finalRoom: plan.finalCoord
                 ? `room-${plan.finalCoord.x}-${plan.finalCoord.z}`
                 : null,
+
             mainPath: plan.mainPathCoords || [],
-            puzzleDistribution: this.getPuzzleDistribution()
+            puzzleDistribution: this.getPuzzleDistribution(),
+
+            metrics: plan.metrics || {},
+            config: plan.config || {}
         };
     },
 
+    // Crea una nueva partida en el backend, guardando su id paraluego asociarle los eventos que puedan
+    // ocurrir en esta
     async startRun(options = {}) {
         if (!this.enabled) return;
         if (this.runId) return;
@@ -149,6 +176,7 @@ window.telemetry = {
         }
     },
 
+    // Registra un evento de la partida, si esta no existe la deja en una cola temporal
     async track(type, payload = {}) {
         if (!this.enabled) return;
 
@@ -183,6 +211,7 @@ window.telemetry = {
         }
     },
 
+    // Envia todos los eventos en la cola temporal al backend
     async flushPendingEvents() {
         const events = [...this.pendingEvents];
         this.pendingEvents = [];
@@ -193,6 +222,7 @@ window.telemetry = {
         }
     },
 
+    // Finaliza la partida, registra el evento final y actualiza su duración y resultado en backend.
     async finishRun(result = 'completed') {
         if (!this.enabled) return;
         if (!this.runId) return;
@@ -228,6 +258,7 @@ window.telemetry = {
         }
     },
 
+    // Marca la partida como abandonomanual, no se si funciona 
     async abandonRun(reason = 'manual_exit') {
         if (!this.enabled) return;
         if (!this.runId) return;
@@ -241,7 +272,7 @@ window.telemetry = {
     }
 };
 
-
+// Sirve para revisar cada x tiempo en que sala esta el jugador, para notificar si este ha cambiado de sala
 AFRAME.registerComponent('telemetry-room-tracker', {
     schema: {
         checkEveryMs: { type: 'number', default: 500 }

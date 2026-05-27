@@ -23,16 +23,25 @@
 AFRAME.registerComponent('map', {
     init: function () {
 
-        const mapSeed = Date.now();
-
-        const progressionPlan = getRandomBetaMazePlan({
-            width: 3,
-            height: 3,
+        const mapConfig = createMapConfig({
+            width: 5,
+            height: 5,
             start: { x: 0, z: 0 },
-            seed: mapSeed
+
+            seed: 1234,
+
+            algorithm: 'spanning-tree',
+            difficulty: 'normal',
+
+            roomSize: 10,
+
+            //loopChance: 0,
+            minMainPathLength: 4
         });
 
-        const roomSize = 10;
+        const progressionPlan = getRandomBetaMazePlan(mapConfig);
+
+        const roomSize = mapConfig.roomSize;
 
         const rooms = createGraph(
             progressionPlan.layout,
@@ -70,6 +79,9 @@ AFRAME.registerComponent('map', {
         console.log("Camino principal:", progressionPlan.mainPathCoords);
         console.log("Árbol:", progressionPlan.tree);
         console.log("Conexiones:", [...progressionPlan.allowedConnections]);
+        
+        console.log("Config:", progressionPlan.config);
+        console.log("Métricas:", progressionPlan.metrics);
     }
 });
 
