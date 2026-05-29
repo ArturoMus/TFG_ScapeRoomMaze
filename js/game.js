@@ -12,9 +12,9 @@ window.playerState = {
 };
 
 window.performanceConfig = {
-    lowSpecMode: true,
-    disableTorchLights: true,
-    disableShadows: true,
+    lowSpecMode: false,
+    disableTorchLights: false,
+    disableShadows: false,
     maxActiveTorchLights: 4
 };
 
