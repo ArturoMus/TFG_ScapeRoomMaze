@@ -41,13 +41,16 @@ function createMapConfig(options = {}) {
 
         seed: options.seed ?? Date.now(),
 
-        algorithm: options.algorithm ?? 'spanning-tree',
+        algorithm: options.algorithm ?? 'dfsBacktracker',
         difficulty: options.difficulty ?? 'normal', // NO SE SI TERMINARÉ IMPLEMENTANDO DIFICULTAD
 
         roomSize: options.roomSize ?? 10,
 
         //loopChance: options.loopChance ?? 0, POR SI QUISIERA HACER LOOPS PERONO CREO
         minMainPathLength: options.minMainPathLength ?? 4,
+        mainPathStrategy: options.mainPathStrategy ?? 'farthest',
+        mainPathTargetRatio: options.mainPathTargetRatio ?? 0.6,
+
         maxGenerationAttempts: options.maxGenerationAttempts ?? 30
     };
 }
@@ -125,7 +128,7 @@ function calculateMapMetrics(progressionPlan) {
 // Generación del árbol del mapa
 // ============================================================
 
-function buildRandomSpanningTree(width, height, startCoord, rng = Math.random) {
+function buildDfsBacktrackerTree(width, height, startCoord, rng = Math.random) {
     const visited = new Set();
 
     const parentByRoom = {};
@@ -144,6 +147,7 @@ function buildRandomSpanningTree(width, height, startCoord, rng = Math.random) {
         visited.add(currentId);
         ensureChildren(currentId);
 
+        // Esto es el core del dfs
         const neighbors = shuffleArray(getGridNeighbors(coord, width, height), rng);
 
         neighbors.forEach(neighbor => {
@@ -219,6 +223,139 @@ function findFarthestPathFromStart(tree, startCoord) {
     return pathIds.map(parseCoordId);
 }
 
+// Con esto recojo todos los IDs de las salas que existen en el árbol
+function getTreeRoomIds(tree) {
+    const ids = new Set();
+
+    Object.keys(tree.childrenByRoom || {}).forEach(id => {
+        ids.add(id);
+
+        const children = tree.childrenByRoom[id] || [];
+        children.forEach(childId => ids.add(childId));
+    });
+
+    Object.keys(tree.parentByRoom || {}).forEach(id => {
+        ids.add(id);
+        ids.add(tree.parentByRoom[id]);
+    });
+
+    return [...ids];
+}
+
+// Si la sala no tiene hijos en childrenByRoom entonces es hoja
+function getLeafRoomIds(tree) {
+    return getTreeRoomIds(tree).filter(id => {
+        const children = tree.childrenByRoom[id] || [];
+        return children.length === 0;
+    });
+}
+
+// Con esto construyo el camino desde el inicio hasta una sala concreta, subiendo por parentByRoom
+function getPathIdsToRoom(tree, targetId) {
+    const path = [];
+    let current = targetId;
+
+    while (current) {
+        path.push(current);
+        current = tree.parentByRoom[current];
+    }
+
+    path.reverse();
+
+    return path;
+}
+
+// Dado un camino, cuenta cuántas salas quedarán fuera de ese camino
+function getBranchStatsForPath(tree, pathIds) {
+    const pathSet = new Set(pathIds);
+    const allRoomIds = getTreeRoomIds(tree);
+
+    let branchRoomCount = 0;
+    const branchRoots = new Set();
+
+    allRoomIds.forEach(roomId => {
+        if (pathSet.has(roomId)) return;
+
+        branchRoomCount++;
+
+        const parentId = tree.parentByRoom[roomId];
+
+        if (parentId && pathSet.has(parentId)) {
+            branchRoots.add(parentId);
+        }
+    });
+
+    return {
+        branchRoomCount,
+        branchCount: branchRoots.size
+    };
+}
+
+/* Cosas que hace esta función
+    - Busca todas las hojas del árbol
+    - Para cada hoja calcula el camino desde el inicio
+    - Calcula cuantas ramas quedarían fuera de ese camino
+    - Puntua cada posible camino
+    - Elige el camino más equilibrado --> longitud suficiente, ramas disponibles, salas fuera del camino principal
+*/
+function findBalancedExplorationPathFromStart(tree, startCoord, config = {}) {
+    const startId = coordId(startCoord);
+    const allRoomIds = getTreeRoomIds(tree);
+    const leafIds = getLeafRoomIds(tree).filter(id => id !== startId);
+
+    const minLength = config.minMainPathLength ?? 4;
+
+    const targetLength = Math.max(
+        minLength,
+        Math.floor(allRoomIds.length * (config.mainPathTargetRatio ?? 0.6))
+    );
+
+    let bestCandidate = null;
+
+    leafIds.forEach(leafId => {
+        const pathIds = getPathIdsToRoom(tree, leafId);
+
+        if (pathIds[0] !== startId) return;
+        if (pathIds.length < minLength) return;
+
+        const branchStats = getBranchStatsForPath(tree, pathIds);
+
+        const distanceToTarget = Math.abs(pathIds.length - targetLength);
+
+        const score =
+            branchStats.branchCount * 4 +
+            branchStats.branchRoomCount * 0.75 +
+            pathIds.length * 0.25 -
+            distanceToTarget * 1.5;
+
+        const candidate = {
+            leafId,
+            pathIds,
+            score,
+            branchStats
+        };
+
+        if (!bestCandidate || candidate.score > bestCandidate.score) {
+            bestCandidate = candidate;
+        }
+    });
+
+    if (!bestCandidate) {
+        return findFarthestPathFromStart(tree, startCoord);
+    }
+
+    return bestCandidate.pathIds.map(parseCoordId);
+}
+
+// Sirve para elegir si crear un camino balanceado o favorecer la habitación más lejana
+function findMainPathFromStart(tree, startCoord, config = {}) {
+    if (config.mainPathStrategy === 'balanced-exploration') {
+        return findBalancedExplorationPathFromStart(tree, startCoord, config);
+    }
+
+    return findFarthestPathFromStart(tree, startCoord);
+}
+
 function getRandomBetaMazePlan(config = {}) {
     
     const mapConfig = createMapConfig(config);
@@ -234,17 +371,17 @@ function getRandomBetaMazePlan(config = {}) {
 
     let tree;
 
-    if (mapConfig.algorithm === 'spanning-tree') {
-        tree = buildRandomSpanningTree(width, height, startCoord, rng);
+    if (mapConfig.algorithm === 'dfsBacktracker') {
+        tree = buildDfsBacktrackerTree(width, height, startCoord, rng);
     } else {
         console.warn(
-            `[MapGenerator] Algoritmo desconocido "${mapConfig.algorithm}". Usando spanning-tree.`
+            `[MapGenerator] Algoritmo desconocido "${mapConfig.algorithm}". Usando dfsBacktracker.`
         );
 
-        tree = buildRandomSpanningTree(width, height, startCoord, rng);
+        tree = buildDfsBacktrackerTree(width, height, startCoord, rng);
     }
 
-    const mainPathCoords = findFarthestPathFromStart(tree, startCoord);
+    const mainPathCoords = findMainPathFromStart(tree, startCoord, mapConfig);
     const finalCoord = mainPathCoords[mainPathCoords.length - 1];
 
     const progressionPlan = {

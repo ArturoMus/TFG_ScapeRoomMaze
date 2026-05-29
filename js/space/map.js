@@ -28,15 +28,18 @@ AFRAME.registerComponent('map', {
             height: 5,
             start: { x: 0, z: 0 },
 
-            seed: 1234,
+            seed: 1235,
 
-            algorithm: 'spanning-tree',
+            algorithm: 'dfsBacktracker',
             difficulty: 'normal',
 
             roomSize: 10,
 
             //loopChance: 0,
-            minMainPathLength: 4
+            mainPathStrategy: 'balanced-exploration',
+            mainPathTargetRatio: 0.55,
+
+            minMainPathLength: 8
         });
 
         const progressionPlan = getRandomBetaMazePlan(mapConfig);
