@@ -104,6 +104,20 @@ AFRAME.registerComponent('pressure-plate', {
         if (!this.telemetryPressed) {
             this.telemetryPressed = true;
 
+            const roomEl = this.el.parentEl;
+
+            trackPuzzleStarted(roomEl, {
+                doorIds: this.data.targets
+            }, {
+                plateId: this.el.id || null
+            });
+
+            trackPuzzleSolved(roomEl, {
+                doorIds: this.data.targets
+            }, {
+                plateId: this.el.id || null
+            });
+
             window.telemetry?.track('pressure_plate_pressed', {
                 plateId: this.el.id || null,
                 objectId: pressingObject?.id || null,

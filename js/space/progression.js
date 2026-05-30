@@ -164,17 +164,136 @@ function getPreviousRoomIdForOrb(room, progressionPlan) {
     return `room-${parentId}`;
 }
 
-function choosePuzzleTypeForRoom(room, progressionPlan, puzzleIndex) {
-    const prevRoomId = getPreviousRoomIdForOrb(room, progressionPlan);
+function getRoomProgressionRole(room, progressionPlan) {
+    const roomShortId = room.id.replace('room-', '');
+    const children = progressionPlan.tree.childrenByRoom[roomShortId] || [];
+    const isMainPath = isRoomOnMainPath(roomShortId, progressionPlan.mainPathCoords);
+    const mainPathIndex = getMainPathIndex(roomShortId, progressionPlan.mainPathCoords);
+    const branchInfo = getBranchRootInfo(roomShortId, progressionPlan);
 
-    const types = ['button', 'pressure', 'memory', 'orb'];
-    let type = types[puzzleIndex % types.length];
-
-    if (type === 'orb' && !prevRoomId) {
-        type = 'button';
+    if (coordId(progressionPlan.finalCoord) === roomShortId) {
+        return 'final';
     }
 
-    return type;
+    if (isMainPath) {
+        const mainChildId = getMainChildId(roomShortId, progressionPlan.mainPathCoords);
+        const branchChildren = children.filter(childId => childId !== mainChildId);
+
+        if (branchChildren.length > 0) {
+            return 'main_decision';
+        }
+
+        return 'main_path';
+    }
+
+    if (children.length === 0) {
+        return 'branch_leaf';
+    }
+
+    if (branchInfo) {
+        return 'branch_path';
+    }
+
+    return 'unknown';
+}
+
+function getParentRoomPuzzleType(room, progressionPlan) {
+    const roomShortId = room.id.replace('room-', '');
+    const parentId = progressionPlan.tree.parentByRoom[roomShortId];
+
+    if (!parentId) return null;
+
+    const parentRoom = window.rooms?.[`room-${parentId}`];
+
+    return parentRoom?.puzzle?.type || null;
+}
+
+function getPuzzleTypeWeight(type, role) {
+    const weightsByRole = {
+        main_path: {
+            button: 1,
+            pressure: 1,
+            memory: 3,
+            orb: 2
+        },
+
+        main_decision: {
+            button: 3,
+            pressure: 2,
+            memory: 2,
+            orb: 1
+        },
+
+        branch_path: {
+            button: 2,
+            pressure: 3,
+            memory: 1,
+            orb: 2
+        },
+
+        branch_leaf: {
+            button: 2,
+            pressure: 1,
+            memory: 2,
+            orb: 3
+        },
+
+        unknown: {
+            button: 1,
+            pressure: 1,
+            memory: 1,
+            orb: 1
+        }
+    };
+
+    return weightsByRole[role]?.[type] ?? 1;
+}
+
+function getLeastUsedPuzzleType(candidates, puzzleCounts, role) {
+    let bestType = null;
+    let bestScore = Infinity;
+
+    candidates.forEach(type => {
+        const count = puzzleCounts[type] || 0;
+        const roleWeight = getPuzzleTypeWeight(type, role);
+
+        // Menor score = más probable.
+        // Si roleWeight es alto, baja el score.
+        const score = count - roleWeight * 0.35;
+
+        if (score < bestScore) {
+            bestScore = score;
+            bestType = type;
+        }
+    });
+
+    return bestType || candidates[0];
+}
+
+function choosePuzzleTypeForRoom(room, progressionPlan, puzzleIndex, puzzleCounts = {}) {
+    const prevRoomId = getPreviousRoomIdForOrb(room, progressionPlan);
+    const parentPuzzleType = getParentRoomPuzzleType(room, progressionPlan);
+    const role = getRoomProgressionRole(room, progressionPlan);
+
+    let candidates = ['button', 'pressure', 'memory', 'orb'];
+
+    // El puzzle de orbe necesita una habitación anterior donde colocar el orbe.
+    if (!prevRoomId) {
+        candidates = candidates.filter(type => type !== 'orb');
+    }
+
+    // Evito que haya dos puzzles seguidos del mismotipo
+    if (parentPuzzleType && candidates.length > 1) {
+        candidates = candidates.filter(type => type !== parentPuzzleType);
+    }
+
+    const selectedType = getLeastUsedPuzzleType(
+        candidates,
+        puzzleCounts,
+        role
+    );
+
+    return selectedType;
 }
 
 function placePuzzleInRoom({ room, type, targetDoorIds, prevRoomId }) {
@@ -220,6 +339,13 @@ function assignProgressionPuzzles(rooms, progressionPlan) {
     const finalShortId = coordId(progressionPlan.finalCoord);
     let puzzleIndex = 0;
 
+    const puzzleCounts = {
+        button: 0,
+        pressure: 0,
+        memory: 0,
+        orb: 0
+    };
+
     Object.values(rooms).forEach(room => {
         if (!room || !room.el) return;
 
@@ -256,7 +382,8 @@ function assignProgressionPuzzles(rooms, progressionPlan) {
         const type = choosePuzzleTypeForRoom(
             room,
             progressionPlan,
-            puzzleIndex
+            puzzleIndex,
+            puzzleCounts
         );
 
         const prevRoomId = getPreviousRoomIdForOrb(room, progressionPlan);
@@ -273,11 +400,17 @@ function assignProgressionPuzzles(rooms, progressionPlan) {
             targetDoorIds
         );
 
-        room.puzzle = {
+        room.puzzle = createPuzzleMeta({
+            room,
             type,
-            targetDoorIds: [...targetDoorIds],
-            solved: false
-        };
+            targetDoorIds,
+            progressionPlan
+        });
+
+
+        trackPuzzleCreated(room.el, {
+            doorIds: targetDoorIds.join(',')
+        });
 
         targetDoors.forEach(door => {
             if (!door.debugPuzzleRoomIds) {
@@ -287,7 +420,14 @@ function assignProgressionPuzzles(rooms, progressionPlan) {
             door.debugPuzzleRoomIds.add(room.id);
         });
 
+        puzzleCounts[type] = (puzzleCounts[type] || 0) + 1;
+
         puzzleIndex++;
+    });
+
+    console.log('[PuzzleDistribution]', {
+        total: puzzleIndex,
+        counts: puzzleCounts
     });
 
     if (window.debugSetPuzzleTotal) {

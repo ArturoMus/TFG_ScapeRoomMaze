@@ -44,6 +44,20 @@ AFRAME.registerComponent('button', {
 
         console.log("Botón empujado");
 
+        const roomEl = this.el.parentEl;
+
+        trackPuzzleStarted(roomEl, {
+            doorIds: this.data.targets
+        }, {
+            buttonId: this.el.id || null
+        });
+
+        trackPuzzleSolved(roomEl, {
+            doorIds: this.data.targets
+        }, {
+            buttonId: this.el.id || null
+        });
+
         window.telemetry?.track('button_pressed', {
             buttonId: this.el.id || null,
             target: this.data.target?.id || null,

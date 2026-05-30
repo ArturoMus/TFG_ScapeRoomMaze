@@ -138,9 +138,7 @@ AFRAME.registerComponent('puzzle-memory-match', {
     fail: function () {
         console.log('[Memory] Patrón incorrecto. Esperando reintento.');
 
-        window.telemetry?.track('puzzle_failed', {
-            puzzleType: 'memory',
-            roomId: this.room?.id || this.el?.id || null,
+        trackPuzzleFailed(this.room, this.data, {
             input: [...this.input],
             expectedLength: this.data.length
         });
@@ -168,9 +166,11 @@ AFRAME.registerComponent('puzzle-memory-match', {
         if (this.isSolved) return;
         if (this.isShowing) return;
 
-        window.telemetry?.track('puzzle_started', {
-            puzzleType: 'memory',
-            roomId: this.room?.id || this.el?.id || null,
+        trackPuzzleStarted(this.room, this.data, {
+            length: this.data.length
+        });
+
+        trackPuzzleAttemptStarted(this.room, this.data, {
             length: this.data.length
         });
 
@@ -199,10 +199,7 @@ AFRAME.registerComponent('puzzle-memory-match', {
 
         console.log('[Memory] Puzzle resuelto. Abriendo puertas:', getPuzzleDoorSelectors(this.data));
 
-        window.telemetry?.track('puzzle_solved', {
-            puzzleType: 'memory',
-            roomId: this.room?.id || this.el?.id || null
-        });
+        trackPuzzleSolved(this.room, this.data);
 
         this.pads.forEach(pad => {
             pad.setAttribute('material', {

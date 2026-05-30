@@ -184,7 +184,7 @@ window.telemetry = {
             runId: this.runId,
             type,
             elapsedMs: this.getElapsedMs(),
-            roomId: this.getCurrentRoomId(),
+            roomId: payload?.roomId || this.getCurrentRoomId(),
             payload
         };
 

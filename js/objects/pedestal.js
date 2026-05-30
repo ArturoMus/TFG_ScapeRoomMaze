@@ -92,6 +92,22 @@ AFRAME.registerComponent('pedestal', {
         console.log("Orbe en posición del pedestal:", orb.object3D.position);
         console.log("Posición del pedestal:", worldPos);
 
+        const roomEl = this.el.parentEl;
+
+        trackPuzzleStarted(roomEl, {
+            doorIds: this.data.targets
+        }, {
+            pedestalId: this.el.id || null,
+            orbId: orb?.id || null
+        });
+
+        trackPuzzleSolved(roomEl, {
+            doorIds: this.data.targets
+        }, {
+            pedestalId: this.el.id || null,
+            orbId: orb?.id || null
+        });
+
         window.telemetry?.track('orb_placed', {
             pedestalId: this.el.id || null,
             orbId: orb.id || null,
