@@ -423,3 +423,471 @@ function createMemoryPuzzlePanel(room, roomSize = 10, options = {}) {
         transform
     };
 }
+// ---------------------------------------------------------------------------------
+
+
+// ---------------------------------------------------------------------------------
+//                              FUNCIONES DEL PUZZLE DE PALANCAS
+// ---------------------------------------------------------------------------------
+
+function getLeverPuzzleWallTransform(room, roomSize = 10, excludedDirection = null) {
+    const roomId = room.getAttribute('id');
+    const roomData = window.rooms?.[roomId];
+    const neighbors = roomData?.neighbors || {};
+
+    const allDirections = ['north', 'south', 'east', 'west'];
+
+    const solidWalls = allDirections.filter(dir => {
+        return !neighbors[dir] && dir !== excludedDirection;
+    });
+
+    const possibleWalls = solidWalls.length > 0
+        ? solidWalls
+        : allDirections.filter(dir => dir !== excludedDirection);
+
+    const direction = randomChoice(possibleWalls.length > 0 ? possibleWalls : allDirections);
+
+    const hasDoor = !!neighbors[direction];
+
+    const half = roomSize / 2;
+    const wallInnerFace = half - 0.14;
+    const lateral = randomWallLateral(hasDoor, roomSize);
+
+    switch (direction) {
+        case 'north':
+            return {
+                direction,
+                position: `${lateral} 1.55 ${-wallInnerFace}`,
+                rotation: '0 0 0'
+            };
+
+        case 'south':
+            return {
+                direction,
+                position: `${lateral} 1.55 ${wallInnerFace}`,
+                rotation: '0 180 0'
+            };
+
+        case 'east':
+            return {
+                direction,
+                position: `${wallInnerFace} 1.55 ${lateral}`,
+                rotation: '0 -90 0'
+            };
+
+        case 'west':
+            return {
+                direction,
+                position: `${-wallInnerFace} 1.55 ${lateral}`,
+                rotation: '0 90 0'
+            };
+    }
+}
+
+function formatLeverHint(solution) {
+    const labels = ['I', 'II', 'III', 'IV', 'V', 'VI'];
+
+    return solution
+        .map((value, index) => {
+            const label = labels[index] || String(index + 1);
+            return `${label} ${value ? 't' : 'f'}`;
+        })
+        .join('   ');
+}
+
+function setLeverVisual(leverHandle, isOn) {
+    leverHandle.setAttribute('rotation', isOn ? '-35 0 0' : '35 0 0');
+
+    leverHandle.setAttribute('material', {
+        color: isOn ? '#3f8f5f' : '#8f3f3f',
+        emissive: isOn ? '#3f8f5f' : '#8f3f3f',
+        emissiveIntensity: 0.12
+    });
+}
+
+function createLeverPuzzlePanel(room, roomSize = 10, options = {}) {
+    const solution = options.solution || [true, false, true, false];
+
+    const transform = getLeverPuzzleWallTransform(room, roomSize);
+
+    const puzzle = document.createElement('a-entity');
+    puzzle.setAttribute('position', transform.position);
+    puzzle.setAttribute('rotation', transform.rotation);
+
+    const panel = document.createElement('a-box');
+    panel.setAttribute('width', '2.3');
+    panel.setAttribute('height', '1.45');
+    panel.setAttribute('depth', '0.08');
+    panel.setAttribute('position', '0 0 0');
+    panel.setAttribute('material', {
+        color: '#222222',
+        opacity: 0.92
+    });
+    panel.setAttribute('class', 'ray-blocker');
+
+    puzzle.appendChild(panel);
+
+    const title = document.createElement('a-text');
+    title.setAttribute('value', 'Ajusta las palancas');
+    title.setAttribute('align', 'center');
+    title.setAttribute('width', '2.5');
+    title.setAttribute('position', '0 0.58 0.08');
+    title.setAttribute('color', '#dddddd');
+
+    puzzle.appendChild(title);
+
+    const leverHandles = [];
+    const labels = ['I', 'II', 'III', 'IV', 'V', 'VI'];
+
+    const spacing = 0.42;
+    const startX = -((solution.length - 1) * spacing) / 2;
+
+    solution.forEach((_, index) => {
+        const x = startX + index * spacing;
+
+        const leverRoot = document.createElement('a-entity');
+        leverRoot.setAttribute('position', `${x} 0.12 0.12`);
+
+        const label = document.createElement('a-text');
+        label.setAttribute('value', labels[index] || String(index + 1));
+        label.setAttribute('align', 'center');
+        label.setAttribute('width', '1');
+        label.setAttribute('position', '0 0.35 0.04');
+        label.setAttribute('color', '#ffffff');
+
+        leverRoot.appendChild(label);
+
+        const base = document.createElement('a-box');
+        base.setAttribute('width', '0.18');
+        base.setAttribute('height', '0.14');
+        base.setAttribute('depth', '0.08');
+        base.setAttribute('position', '0 -0.08 0');
+        base.setAttribute('material', {
+            color: '#555555'
+        });
+
+        leverRoot.appendChild(base);
+
+        const handle = document.createElement('a-box');
+        handle.setAttribute('id', `${room.getAttribute('id')}-lever-${index}`);
+        handle.setAttribute('width', '0.08');
+        handle.setAttribute('height', '0.46');
+        handle.setAttribute('depth', '0.08');
+        handle.setAttribute('position', '0 0.05 0.06');
+
+        handle.setAttribute('class', 'interactable');
+        handle.setAttribute('interactable', '');
+
+        handle.addEventListener('mouseenter', () => {
+            handle.setAttribute('scale', '1.08 1.08 1.08');
+        });
+
+        handle.addEventListener('mouseleave', () => {
+            handle.setAttribute('scale', '1 1 1');
+        });
+
+        handle.addEventListener('click', () => {
+            if (options.onLeverToggle) {
+                options.onLeverToggle(index);
+            }
+        });
+
+        setLeverVisual(handle, false);
+
+        leverRoot.appendChild(handle);
+
+        leverHandles.push(handle);
+        puzzle.appendChild(leverRoot);
+    });
+
+    const checkButton = document.createElement('a-box');
+    checkButton.setAttribute('id', `${room.getAttribute('id')}-lever-check`);
+    checkButton.setAttribute('width', '1.15');
+    checkButton.setAttribute('height', '0.22');
+    checkButton.setAttribute('depth', '0.06');
+    checkButton.setAttribute('position', '0 -0.52 0.1');
+    checkButton.setAttribute('class', 'interactable');
+    checkButton.setAttribute('interactable', '');
+    checkButton.setAttribute('material', {
+        color: '#3a5f8f',
+        emissive: '#3a5f8f',
+        emissiveIntensity: 0.08
+    });
+
+    const checkText = document.createElement('a-text');
+    checkText.setAttribute('value', 'Comprobar');
+    checkText.setAttribute('align', 'center');
+    checkText.setAttribute('width', '1.8');
+    checkText.setAttribute('position', '0 -0.035 0.05');
+    checkText.setAttribute('color', '#ffffff');
+
+    checkButton.appendChild(checkText);
+
+    checkButton.addEventListener('mouseenter', () => {
+        checkButton.setAttribute('material', 'color', '#4f7fc0');
+    });
+
+    checkButton.addEventListener('mouseleave', () => {
+        checkButton.setAttribute('material', 'color', '#3a5f8f');
+    });
+
+    checkButton.addEventListener('click', () => {
+        if (options.onCheckClick) {
+            options.onCheckClick();
+        }
+    });
+
+    puzzle.appendChild(checkButton);
+
+    room.appendChild(puzzle);
+
+    const hintTransform = getLeverPuzzleWallTransform(
+        room,
+        roomSize,
+        transform.direction
+    );
+
+    const hint = document.createElement('a-entity');
+    hint.setAttribute('position', hintTransform.position);
+    hint.setAttribute('rotation', hintTransform.rotation);
+
+    const hintText = document.createElement('a-text');
+    hintText.setAttribute('value', formatLeverHint(solution));
+    hintText.setAttribute('align', 'center');
+    hintText.setAttribute('width', '2.5');
+    hintText.setAttribute('position', '0 0 0.08');
+    hintText.setAttribute('color', '#777777');
+
+    hint.appendChild(hintText);
+    room.appendChild(hint);
+
+    console.log(
+        `[Levers] Puzzle creado en ${room.getAttribute('id')}, panel en pared ${transform.direction}, pista en pared ${hintTransform.direction}`
+    );
+
+    return {
+        puzzle,
+        leverHandles,
+        checkButton,
+        checkText,
+        hint,
+        solution,
+        transform,
+        hintTransform
+    };
+}
+// ---------------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------------
+//                              FUNCIONES DEL PUZZLE DE SÍMBOLOS
+// ---------------------------------------------------------------------------------
+
+const SYMBOL_ASSETS = ['#runeA', '#runeB', '#runeC', '#runeD'];
+
+function getSymbolWallTransform(room, roomSize = 10, excludedDirection = null) {
+    const roomId = room.getAttribute('id');
+    const roomData = window.rooms?.[roomId];
+    const neighbors = roomData?.neighbors || {};
+
+    const allDirections = ['north', 'south', 'east', 'west'];
+
+    const solidWalls = allDirections.filter(dir => {
+        return !neighbors[dir] && dir !== excludedDirection;
+    });
+
+    const possibleWalls = solidWalls.length > 0
+        ? solidWalls
+        : allDirections.filter(dir => dir !== excludedDirection);
+
+    const direction = randomChoice(possibleWalls.length > 0 ? possibleWalls : allDirections);
+
+    const hasDoor = !!neighbors[direction];
+
+    const half = roomSize / 2;
+    const wallInnerFace = half - 0.14;
+    const lateral = randomWallLateral(hasDoor, roomSize);
+
+    switch (direction) {
+        case 'north':
+            return {
+                direction,
+                position: `${lateral} 1.55 ${-wallInnerFace}`,
+                rotation: '0 0 0'
+            };
+
+        case 'south':
+            return {
+                direction,
+                position: `${lateral} 1.55 ${wallInnerFace}`,
+                rotation: '0 180 0'
+            };
+
+        case 'east':
+            return {
+                direction,
+                position: `${wallInnerFace} 1.55 ${lateral}`,
+                rotation: '0 -90 0'
+            };
+
+        case 'west':
+            return {
+                direction,
+                position: `${-wallInnerFace} 1.55 ${lateral}`,
+                rotation: '0 90 0'
+            };
+    }
+}
+
+function createSymbolImagePlane(src, width = 0.32, height = 0.32) {
+    const plane = document.createElement('a-plane');
+
+    plane.setAttribute('width', width);
+    plane.setAttribute('height', height);
+
+    plane.setAttribute('material', {
+        src,
+        transparent: true,
+        shader: 'flat',
+        side: 'double'
+    });
+
+    return plane;
+}
+
+function createSymbolPuzzlePanel(room, roomSize = 10, options = {}) {
+    const transform = getSymbolWallTransform(room, roomSize);
+
+    const puzzle = document.createElement('a-entity');
+    puzzle.setAttribute('position', transform.position);
+    puzzle.setAttribute('rotation', transform.rotation);
+
+    const panel = document.createElement('a-box');
+    panel.setAttribute('width', '2.25');
+    panel.setAttribute('height', '1.25');
+    panel.setAttribute('depth', '0.08');
+    panel.setAttribute('position', '0 0 0');
+    panel.setAttribute('material', {
+        color: '#222222',
+        opacity: 0.92
+    });
+    panel.setAttribute('class', 'ray-blocker');
+
+    puzzle.appendChild(panel);
+
+    const title = document.createElement('a-text');
+    title.setAttribute('value', 'Elige la runa correcta');
+    title.setAttribute('align', 'center');
+    title.setAttribute('width', '2.5');
+    title.setAttribute('position', '0 0.48 0.08');
+    title.setAttribute('color', '#dddddd');
+
+    puzzle.appendChild(title);
+
+    const symbolButtons = [];
+
+    const spacing = 0.48;
+    const startX = -((SYMBOL_ASSETS.length - 1) * spacing) / 2;
+
+    SYMBOL_ASSETS.forEach((src, index) => {
+        const x = startX + index * spacing;
+
+        const buttonRoot = document.createElement('a-entity');
+        buttonRoot.setAttribute('position', `${x} -0.05 0.1`);
+
+        const base = document.createElement('a-box');
+        base.setAttribute('width', '0.38');
+        base.setAttribute('height', '0.38');
+        base.setAttribute('depth', '0.06');
+        base.setAttribute('position', '0 0 -0.02');
+        base.setAttribute('class', 'interactable');
+        base.setAttribute('interactable', '');
+        base.setAttribute('material', {
+            color: '#3a3a3a',
+            emissive: '#222222',
+            emissiveIntensity: 0.05
+        });
+
+        const icon = createSymbolImagePlane(src, 0.28, 0.28);
+        icon.setAttribute('position', '0 0 0.04');
+
+        base.appendChild(icon);
+
+        base.addEventListener('mouseenter', () => {
+            base.setAttribute('scale', '1.1 1.1 1.1');
+            base.setAttribute('material', 'color', '#555555');
+        });
+
+        base.addEventListener('mouseleave', () => {
+            base.setAttribute('scale', '1 1 1');
+            base.setAttribute('material', 'color', '#3a3a3a');
+        });
+
+        base.addEventListener('click', () => {
+            if (options.onSymbolClick) {
+                options.onSymbolClick(index);
+            }
+        });
+
+        buttonRoot.appendChild(base);
+        puzzle.appendChild(buttonRoot);
+
+        symbolButtons.push(base);
+    });
+
+    room.appendChild(puzzle);
+
+    console.log(
+        `[Symbol] Panel creado en ${room.getAttribute('id')}, pared ${transform.direction}`
+    );
+
+    return {
+        puzzle,
+        symbolButtons,
+        transform
+    };
+}
+
+function createSymbolClue(clueRoomEl, symbolIndex, roomSize = 10, options = {}) {
+    if (!clueRoomEl) {
+        console.warn('[Symbol] No se puede crear pista: clueRoomEl null');
+        return null;
+    }
+
+    const transform = getSymbolWallTransform(clueRoomEl, roomSize);
+
+    const clue = document.createElement('a-entity');
+    clue.setAttribute('id', `${clueRoomEl.getAttribute('id')}-symbol-clue-${symbolIndex}`);
+    clue.setAttribute('position', transform.position);
+    clue.setAttribute('rotation', transform.rotation);
+
+    const frame = document.createElement('a-box');
+    frame.setAttribute('width', '0.62');
+    frame.setAttribute('height', '0.62');
+    frame.setAttribute('depth', '0.04');
+    frame.setAttribute('position', '0 0 0');
+    frame.setAttribute('material', {
+        src: '#wallTex',
+        repeat: '0.5 0.5',
+        opacity: 0.8
+    });
+
+    
+
+    clue.appendChild(frame);
+
+    const symbolSrc = SYMBOL_ASSETS[symbolIndex] || SYMBOL_ASSETS[0];
+
+    const symbol = createSymbolImagePlane(symbolSrc, 0.46, 0.46);
+    symbol.setAttribute('position', '0 0 0.04');
+
+    clue.appendChild(symbol);
+
+    clueRoomEl.appendChild(clue);
+
+    console.log(
+        `[Symbol] Pista creada en ${clueRoomEl.getAttribute('id')}, pared ${transform.direction}, símbolo ${symbolIndex}`
+    );
+
+    return clue;
+}
+// ---------------------------------------------------------------------------------

@@ -2,6 +2,8 @@
 // Lógica de progresión y puzzles
 // ============================================================
 
+const { symbol } = require("astro:schema");
+
 function isRoomOnMainPath(roomShortId, mainPathCoords) {
     return mainPathCoords.some(coord => coordId(coord) === roomShortId);
 }
@@ -214,35 +216,45 @@ function getPuzzleTypeWeight(type, role) {
             button: 1,
             pressure: 1,
             memory: 3,
-            orb: 2
+            orb: 2,
+            levers: 2,
+            symbol: 2
         },
 
         main_decision: {
             button: 3,
             pressure: 2,
             memory: 2,
-            orb: 1
+            orb: 1,
+            levers: 2,
+            symbol: 2,
         },
 
         branch_path: {
             button: 2,
             pressure: 3,
             memory: 1,
-            orb: 2
+            orb: 2,
+            levers: 2,
+            symbol: 2
         },
 
         branch_leaf: {
             button: 2,
             pressure: 1,
             memory: 2,
-            orb: 3
+            orb: 3,
+            levers: 2,
+            symbol: 1
         },
 
         unknown: {
             button: 1,
             pressure: 1,
             memory: 1,
-            orb: 1
+            orb: 1,
+            levers: 1,
+            symbol: 1
         }
     };
 
@@ -275,11 +287,20 @@ function choosePuzzleTypeForRoom(room, progressionPlan, puzzleIndex, puzzleCount
     const parentPuzzleType = getParentRoomPuzzleType(room, progressionPlan);
     const role = getRoomProgressionRole(room, progressionPlan);
 
-    let candidates = ['button', 'pressure', 'memory', 'orb'];
+    let candidates = ['button', 'pressure', 'memory', 'orb', 'levers', 'symbol'];
 
     // El puzzle de orbe necesita una habitación anterior donde colocar el orbe.
     if (!prevRoomId) {
         candidates = candidates.filter(type => type !== 'orb');
+    }
+
+    // Con esto evito que se cree el puzzle de símbolos en una habitación que no tenga otra anterior válida
+    if (candidates.includes('symbol')) {
+        const symbolCandidates = getSymbolClueCandidateRoomIds(room, progressionPlan);
+
+        if (symbolCandidates.length === 0) {
+            candidates = candidates.filter(type => type !== 'symbol');
+        }
     }
 
     // Evito que haya dos puzzles seguidos del mismotipo
@@ -296,7 +317,7 @@ function choosePuzzleTypeForRoom(room, progressionPlan, puzzleIndex, puzzleCount
     return selectedType;
 }
 
-function placePuzzleInRoom({ room, type, targetDoorIds, prevRoomId }) {
+function placePuzzleInRoom({ room, type, targetDoorIds, prevRoomId, puzzleExtra = {} }) {
     const targetString = targetDoorIds.join(',');
 
     if (type === 'button') {
@@ -304,13 +325,11 @@ function placePuzzleInRoom({ room, type, targetDoorIds, prevRoomId }) {
             doorIds: targetString
         });
     }
-
     else if (type === 'pressure') {
         room.el.setAttribute('puzzle-pressure-plate', {
             doorIds: targetString
         });
     }
-
     else if (type === 'memory') {
         room.el.setAttribute('puzzle-memory-match', {
             doorIds: targetString,
@@ -318,7 +337,6 @@ function placePuzzleInRoom({ room, type, targetDoorIds, prevRoomId }) {
             showSpeed: 650
         });
     }
-
     else if (type === 'orb') {
         if (!prevRoomId) {
             room.el.setAttribute('puzzle-button-door', {
@@ -333,6 +351,20 @@ function placePuzzleInRoom({ room, type, targetDoorIds, prevRoomId }) {
             prevRoomId: prevRoomId
         });
     }
+    else if (type === 'levers') {
+        room.el.setAttribute('puzzle-levers', {
+            doorIds: targetString,
+            leverCount: 4
+        });
+    }
+    else if (type === 'symbol') {
+        room.el.setAttribute('puzzle-symbol', {
+            doorIds: targetString,
+            symbolIndex: puzzleExtra.symbolIndex,
+            clueRoomId: puzzleExtra.clueRoomId
+        });
+    }
+
 }
 
 function assignProgressionPuzzles(rooms, progressionPlan) {
@@ -343,7 +375,9 @@ function assignProgressionPuzzles(rooms, progressionPlan) {
         button: 0,
         pressure: 0,
         memory: 0,
-        orb: 0
+        orb: 0,
+        levers: 0,
+        symbol: 0
     };
 
     Object.values(rooms).forEach(room => {
@@ -386,13 +420,20 @@ function assignProgressionPuzzles(rooms, progressionPlan) {
             puzzleCounts
         );
 
+        let puzzleExtra = {};
+
+        if (type === 'symbol') {
+            puzzleExtra = createSymbolPuzzleProgressionData(room, progressionPlan);
+        }
+
         const prevRoomId = getPreviousRoomIdForOrb(room, progressionPlan);
 
         placePuzzleInRoom({
             room,
             type,
             targetDoorIds,
-            prevRoomId
+            prevRoomId,
+            puzzleExtra
         });
 
         console.log(
@@ -406,10 +447,17 @@ function assignProgressionPuzzles(rooms, progressionPlan) {
             targetDoorIds,
             progressionPlan
         });
-
+        
+        if (type === 'symbol') {
+            room.puzzle.symbolIndex = puzzleExtra.symbolIndex;
+            room.puzzle.clueRoomId = puzzleExtra.clueRoomId;
+        }
 
         trackPuzzleCreated(room.el, {
             doorIds: targetDoorIds.join(',')
+        },{
+            symbolIndex: type === 'symbol' ? puzzleExtra.symbolIndex : null,
+            clueRoomId: type === 'symbol' ? puzzleExtra.clueRoomId : null
         });
 
         targetDoors.forEach(door => {
@@ -433,4 +481,18 @@ function assignProgressionPuzzles(rooms, progressionPlan) {
     if (window.debugSetPuzzleTotal) {
         window.debugSetPuzzleTotal(puzzleIndex);
     }
+}
+
+function getAncestorRoomIds(roomShortId, progressionPlan) {
+    const ancestors = [];
+    let current = progressionPlan.tree.parentByRoom[roomShortId];
+
+    while (current) {
+        ancestors.push(current);
+        current = progressionPlan.tree.parentByRoom[current];
+    }
+
+    ancestors.reverse();
+
+    return ancestors;
 }

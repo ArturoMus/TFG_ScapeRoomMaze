@@ -224,3 +224,22 @@ function trackPuzzleAttemptStarted(roomEl, data = {}, extra = {}) {
         roomId: payload.roomId
     });
 }
+
+function createSeededRandom(seedText) {
+    let hash = 2166136261;
+
+    for (let i = 0; i < seedText.length; i++) {
+        hash ^= seedText.charCodeAt(i);
+        hash = Math.imul(hash, 16777619);
+    }
+
+    return function () {
+        hash += hash << 13;
+        hash ^= hash >>> 7;
+        hash += hash << 3;
+        hash ^= hash >>> 17;
+        hash += hash << 5;
+
+        return (hash >>> 0) / 4294967296;
+    };
+}
