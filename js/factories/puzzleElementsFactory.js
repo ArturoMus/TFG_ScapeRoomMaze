@@ -15,6 +15,172 @@ function normalizeTargetSelectors(targetSelectors) {
         .join(',');
 }
 
+// ---------------------------------------------------------------------------------
+//                                   FUNCIONES PARA LOS ONJETOS EN PAREDES
+// ---------------------------------------------------------------------------------
+
+function getRoomWallReservations(room) {
+    const roomId = room.getAttribute('id');
+    const roomData = window.rooms?.[roomId];
+
+    if (!roomData) return [];
+
+    if (!roomData.wallReservations) {
+        roomData.wallReservations = [];
+    }
+
+    return roomData.wallReservations;
+}
+
+function isWallSlotFree(room, slot) {
+    const reservations = getRoomWallReservations(room);
+
+    return !reservations.some(existing => {
+        if (existing.direction !== slot.direction) return false;
+
+        const lateralDistance = Math.abs(existing.lateral - slot.lateral);
+        const verticalDistance = Math.abs(existing.y - slot.y);
+
+        const minDistance = (existing.radius ?? 0.8) + (slot.radius ?? 0.8);
+
+        return lateralDistance < minDistance && verticalDistance < minDistance * 0.7;
+    });
+}
+
+function reserveWallSlot(room, slot) {
+    const reservations = getRoomWallReservations(room);
+
+    reservations.push({
+        direction: slot.direction,
+        lateral: slot.lateral,
+        y: slot.y,
+        radius: slot.radius ?? 0.8,
+        label: slot.label || 'unknown'
+    });
+}
+
+function getWallTransformFromSlot(direction, lateral, y, roomSize = 10, depthOffset = 0.14) {
+    const half = roomSize / 2;
+    const wallInnerFace = half - depthOffset;
+
+    switch (direction) {
+        case 'north':
+            return {
+                direction,
+                lateral,
+                y,
+                position: `${lateral} ${y} ${-wallInnerFace}`,
+                rotation: '0 0 0'
+            };
+
+        case 'south':
+            return {
+                direction,
+                lateral,
+                y,
+                position: `${lateral} ${y} ${wallInnerFace}`,
+                rotation: '0 180 0'
+            };
+
+        case 'east':
+            return {
+                direction,
+                lateral,
+                y,
+                position: `${wallInnerFace} ${y} ${lateral}`,
+                rotation: '0 -90 0'
+            };
+
+        case 'west':
+            return {
+                direction,
+                lateral,
+                y,
+                position: `${-wallInnerFace} ${y} ${lateral}`,
+                rotation: '0 90 0'
+            };
+    }
+}
+
+function getReservedWallTransform(room, roomSize = 10, options = {}) {
+    const roomId = room.getAttribute('id');
+    const roomData = window.rooms?.[roomId];
+    const neighbors = roomData?.neighbors || {};
+
+    const excludedDirection = options.excludedDirection || null;
+    const radius = options.radius ?? 0.9;
+    const label = options.label || 'wall-object';
+    const depthOffset = options.depthOffset ?? 0.14;
+
+    const allDirections = ['north', 'south', 'east', 'west'];
+
+    const solidWalls = allDirections.filter(dir => {
+        return !neighbors[dir] && dir !== excludedDirection;
+    });
+
+    const possibleWalls = solidWalls.length > 0
+        ? solidWalls
+        : allDirections.filter(dir => dir !== excludedDirection);
+
+    const directionsToTry = shuffleArray(
+        possibleWalls.length > 0 ? possibleWalls : allDirections,
+        Math.random
+    );
+
+    for (let attempt = 0; attempt < 30; attempt++) {
+        const direction = directionsToTry[attempt % directionsToTry.length];
+        const hasDoor = !!neighbors[direction];
+
+        const lateral = randomWallLateral(hasDoor, roomSize);
+        const y = randomRange(options.minY ?? 1.1, options.maxY ?? 2.2);
+
+        const slot = {
+            direction,
+            lateral,
+            y,
+            radius,
+            label
+        };
+
+        if (isWallSlotFree(room, slot)) {
+            reserveWallSlot(room, slot);
+
+            return getWallTransformFromSlot(
+                direction,
+                lateral,
+                y,
+                roomSize,
+                depthOffset
+            );
+        }
+    }
+
+    console.warn(`[WallSlots] No se encontró hueco libre en ${roomId}. Usando fallback.`);
+
+    const fallbackDirection = directionsToTry[0] || 'north';
+    const fallbackHasDoor = !!neighbors[fallbackDirection];
+
+    const fallbackLateral = randomWallLateral(fallbackHasDoor, roomSize);
+    const fallbackY = randomRange(options.minY ?? 1.1, options.maxY ?? 2.2);
+
+    const fallbackSlot = {
+        direction: fallbackDirection,
+        lateral: fallbackLateral,
+        y: fallbackY,
+        radius,
+        label
+    };
+
+    reserveWallSlot(room, fallbackSlot);
+
+    return getWallTransformFromSlot(
+        fallbackDirection,
+        fallbackLateral,
+        fallbackY,
+        roomSize,
+        depthOffset
+    );
+}
 
 // ---------------------------------------------------------------------------------
 //                                   FUNCIONES DE LOS BOTONES
@@ -53,25 +219,22 @@ function createButton(position, targetSelector, room, options ={}) {
 
 function createCamouflagedWallButton(room, targetSelector, roomSize = 10) {
     const roomId = room.getAttribute('id');
-    const roomData = window.rooms?.[roomId];
 
-    const neighbors = roomData?.neighbors || {};
+    const transform = getReservedWallTransform(room, roomSize, {
+        label: 'camouflaged-button',
+        radius: 0.55,
+        minY: 1.1,
+        maxY: 2.3,
+        depthOffset: 0.1
+    });
 
-    const allDirections = ['north', 'south', 'east', 'west'];
-
-    // Selecciono preferiblemente paredes sin huecos, para evitar problemas
-    const solidWalls = allDirections.filter(dir => !neighbors[dir]);
-    const possibleWalls = solidWalls.length > 0 ? solidWalls : allDirections;
-
-    const direction = randomChoice(possibleWalls);
-    const hasDoor = !!neighbors[direction];
+    const direction = transform.direction;
+    const lateral = transform.lateral;
+    const y = transform.y;
 
     const half = roomSize / 2;
     const wallInnerFace = half - 0.1;
     const buttonDepth = 0.08;
-
-    const lateral = randomWallLateral(hasDoor, roomSize);
-    const y = randomRange(1.1, 2.3);
 
     const material = {
         src: '#wallTex',
@@ -228,53 +391,13 @@ function createCamouflagedPressurePlate(room, doorSelector, roomSize = 10) {
 //                                   FUNCIONES DE LOS PUZZLES DE MEMORIA
 // ---------------------------------------------------------------------------------
 function getMemoryPuzzleWallTransform(room, roomSize = 10) {
-    const roomId = room.getAttribute('id');
-    const roomData = window.rooms?.[roomId];
-    const neighbors = roomData?.neighbors || {};
-
-    const allDirections = ['north', 'south', 'east', 'west'];
-
-    // Preferimos paredes sin puerta.
-    const solidWalls = allDirections.filter(dir => !neighbors[dir]);
-    const possibleWalls = solidWalls.length > 0 ? solidWalls : allDirections;
-
-    const direction = randomChoice(possibleWalls);
-    const hasDoor = !!neighbors[direction];
-
-    const half = roomSize / 2;
-    const wallInnerFace = half - 0.14;
-
-    const lateral = randomWallLateral(hasDoor, roomSize);
-
-    switch (direction) {
-        case 'north':
-            return {
-                direction,
-                position: `${lateral} 1.55 ${-wallInnerFace}`,
-                rotation: '0 0 0'
-            };
-
-        case 'south':
-            return {
-                direction,
-                position: `${lateral} 1.55 ${wallInnerFace}`,
-                rotation: '0 180 0'
-            };
-
-        case 'east':
-            return {
-                direction,
-                position: `${wallInnerFace} 1.55 ${lateral}`,
-                rotation: '0 -90 0'
-            };
-
-        case 'west':
-            return {
-                direction,
-                position: `${-wallInnerFace} 1.55 ${lateral}`,
-                rotation: '0 90 0'
-            };
-    }
+    return getReservedWallTransform(room, roomSize, {
+        label: 'memory-panel',
+        radius: 1.25,
+        minY: 1.55,
+        maxY: 1.55,
+        depthOffset: 0.14
+    });
 }
 
 function createMemoryPuzzlePanel(room, roomSize = 10, options = {}) {
@@ -431,57 +554,14 @@ function createMemoryPuzzlePanel(room, roomSize = 10, options = {}) {
 // ---------------------------------------------------------------------------------
 
 function getLeverPuzzleWallTransform(room, roomSize = 10, excludedDirection = null) {
-    const roomId = room.getAttribute('id');
-    const roomData = window.rooms?.[roomId];
-    const neighbors = roomData?.neighbors || {};
-
-    const allDirections = ['north', 'south', 'east', 'west'];
-
-    const solidWalls = allDirections.filter(dir => {
-        return !neighbors[dir] && dir !== excludedDirection;
+    return getReservedWallTransform(room, roomSize, {
+        label: 'lever-panel',
+        radius: 1.35,
+        minY: 1.55,
+        maxY: 1.55,
+        excludedDirection,
+        depthOffset: 0.14
     });
-
-    const possibleWalls = solidWalls.length > 0
-        ? solidWalls
-        : allDirections.filter(dir => dir !== excludedDirection);
-
-    const direction = randomChoice(possibleWalls.length > 0 ? possibleWalls : allDirections);
-
-    const hasDoor = !!neighbors[direction];
-
-    const half = roomSize / 2;
-    const wallInnerFace = half - 0.14;
-    const lateral = randomWallLateral(hasDoor, roomSize);
-
-    switch (direction) {
-        case 'north':
-            return {
-                direction,
-                position: `${lateral} 1.55 ${-wallInnerFace}`,
-                rotation: '0 0 0'
-            };
-
-        case 'south':
-            return {
-                direction,
-                position: `${lateral} 1.55 ${wallInnerFace}`,
-                rotation: '0 180 0'
-            };
-
-        case 'east':
-            return {
-                direction,
-                position: `${wallInnerFace} 1.55 ${lateral}`,
-                rotation: '0 -90 0'
-            };
-
-        case 'west':
-            return {
-                direction,
-                position: `${-wallInnerFace} 1.55 ${lateral}`,
-                rotation: '0 90 0'
-            };
-    }
 }
 
 function formatLeverHint(solution) {
@@ -685,57 +765,14 @@ function createLeverPuzzlePanel(room, roomSize = 10, options = {}) {
 const SYMBOL_ASSETS = ['#runeA', '#runeB', '#runeC', '#runeD'];
 
 function getSymbolWallTransform(room, roomSize = 10, excludedDirection = null) {
-    const roomId = room.getAttribute('id');
-    const roomData = window.rooms?.[roomId];
-    const neighbors = roomData?.neighbors || {};
-
-    const allDirections = ['north', 'south', 'east', 'west'];
-
-    const solidWalls = allDirections.filter(dir => {
-        return !neighbors[dir] && dir !== excludedDirection;
+    return getReservedWallTransform(room, roomSize, {
+        label: 'symbol-object',
+        radius: 1.15,
+        minY: 1.55,
+        maxY: 1.55,
+        excludedDirection,
+        depthOffset: 0.14
     });
-
-    const possibleWalls = solidWalls.length > 0
-        ? solidWalls
-        : allDirections.filter(dir => dir !== excludedDirection);
-
-    const direction = randomChoice(possibleWalls.length > 0 ? possibleWalls : allDirections);
-
-    const hasDoor = !!neighbors[direction];
-
-    const half = roomSize / 2;
-    const wallInnerFace = half - 0.14;
-    const lateral = randomWallLateral(hasDoor, roomSize);
-
-    switch (direction) {
-        case 'north':
-            return {
-                direction,
-                position: `${lateral} 1.55 ${-wallInnerFace}`,
-                rotation: '0 0 0'
-            };
-
-        case 'south':
-            return {
-                direction,
-                position: `${lateral} 1.55 ${wallInnerFace}`,
-                rotation: '0 180 0'
-            };
-
-        case 'east':
-            return {
-                direction,
-                position: `${wallInnerFace} 1.55 ${lateral}`,
-                rotation: '0 -90 0'
-            };
-
-        case 'west':
-            return {
-                direction,
-                position: `${-wallInnerFace} 1.55 ${lateral}`,
-                rotation: '0 90 0'
-            };
-    }
 }
 
 function createSymbolImagePlane(src, width = 0.32, height = 0.32) {
