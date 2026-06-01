@@ -68,8 +68,6 @@ AFRAME.registerComponent('map', {
             window.debugInitMap(progressionPlan, rooms);
         }
 
-        window.telemetry?.startRun();
-
         createEndRoomTrigger?.(
             rooms,
             progressionPlan.mainPathCoords,

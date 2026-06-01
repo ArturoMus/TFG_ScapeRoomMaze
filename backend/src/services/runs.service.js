@@ -11,7 +11,7 @@ async function createRun(data) {
     const run = {
         id: crypto.randomUUID(),
 
-        playerAlias: data.playerAlias || 'anon',
+        playerAlias: data.playerAlias || 'guest',
         startedAt: new Date(),
         result: 'started',
 

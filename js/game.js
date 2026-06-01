@@ -4,7 +4,12 @@ window.gameState = {
     started: false,
     mapGenerated: false,
     startTime: null,
-    endTime: null
+    endTime: null,
+    playerAlias: 'guest',
+    roomVisitCounts: {},
+    roomTimeMs: {},
+    currentTrackedRoomId: null,
+    lastRoomPresenceAt: null
 };
 
 window.playerState = {
@@ -57,6 +62,19 @@ function setPlayerMovementEnabled(enabled) {
     );
 }
 
+function getCurrentPlayerAlias() {
+    if (window.getSelectedPlayerAlias) {
+        return window.getSelectedPlayerAlias();
+    }
+
+    const alias = window.selectedPlayerAlias || window.gameState?.playerAlias || 'anon';
+
+    return String(alias)
+        .trim()
+        .replace(/\s+/g, '_')
+        .slice(0, 12) || 'guest';
+}
+
 function generateMapOnce() {
     if (window.gameState.mapGenerated) return;
 
@@ -77,6 +95,11 @@ function generateMapOnce() {
 
 window.startGameFromMenu = function () {
     if (window.gameState.started) return;
+
+    const playerAlias = getCurrentPlayerAlias();
+
+    window.gameState.playerAlias = playerAlias;
+    window.selectedPlayerAlias = playerAlias;
 
     window.gameState.started = true;
     window.gameState.startTime = performance.now();
@@ -102,6 +125,12 @@ window.startGameFromMenu = function () {
     setTimeout(() => {
         generateMapOnce();
 
+        setTimeout(() => {
+            window.telemetry?.startRun?.({
+                playerAlias: window.gameState.playerAlias || 'guest'
+            });
+        }, 0);
+
         if (loadingScreen?.components['vr-loading-screen']) {
             loadingScreen.components['vr-loading-screen'].setContent(
                 'Objetivo',
@@ -126,6 +155,7 @@ function endGame() {
 
     window.gameState.finished = true;
     window.gameState.endTime = performance.now();
+    window.telemetry?.finishRun?.('completed');
 
     console.log("Juego terminado");
 
@@ -143,13 +173,21 @@ function endGame() {
     console.log('components:', endScreen?.components);
     console.log('vr-end-screen:', endScreen?.components?.['vr-end-screen']);
 
+    const currentRoomId = window.telemetry?.getCurrentRoomId?.();
+
+    if (currentRoomId) {
+        window.recordRoomPresence?.(currentRoomId, window.gameState.endTime);
+    }
+
+    const summary = buildEndGameSummary(elapsed);
+
     if (endScreen?.components['vr-end-screen']) {
-        endScreen.components['vr-end-screen'].setTime(formattedTime);
+        endScreen.components['vr-end-screen'].setSummary(summary);
 
         placeEntityInFrontOfCamera(endScreen, 2.2);
 
         endScreen.components['vr-end-screen'].show();
-        console.log("Mostrando pantalla final VR:", formattedTime);
+        console.log("Mostrando pantalla final VR:", summary);
     }
 }
 
@@ -160,6 +198,107 @@ function formatGameTime(milliseconds) {
     const seconds = totalSeconds % 60;
 
     return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+}
+
+// Este método me permite saber cuanto tiempo ha pasado el jugador en cada sala y
+// cuantas veces a entrad
+window.recordRoomPresence = function (roomId, sampleTime = performance.now()) {
+    if (!roomId) return;
+    if (!window.gameState?.started) return;
+
+    const state = window.gameState;
+
+    if (!state.roomVisitCounts) state.roomVisitCounts = {};
+    if (!state.roomTimeMs) state.roomTimeMs = {};
+
+    const previousRoomId = state.currentTrackedRoomId;
+    const lastSampleTime = state.lastRoomPresenceAt ?? sampleTime;
+
+    const delta = Math.max(0, sampleTime - lastSampleTime);
+
+    // Con esto evito sumar tiempos si el navegador peta o cambio de pestaña
+    const safeDelta = Math.min(delta, 2000);
+
+    if (previousRoomId) {
+        state.roomTimeMs[previousRoomId] = (state.roomTimeMs[previousRoomId] || 0) + safeDelta;
+    }
+
+    if (roomId !== previousRoomId) {
+        state.roomVisitCounts[roomId] = (state.roomVisitCounts[roomId] || 0) + 1;
+    }
+
+    state.currentTrackedRoomId = roomId;
+    state.lastRoomPresenceAt = sampleTime;
+};
+
+function buildEndGameSummary(elapsedMs) {
+    if (typeof debugRefreshDoorStats === 'function') {
+        debugRefreshDoorStats();
+    }
+
+    const rooms = window.rooms || {};
+    const roomCount = Object.keys(rooms).length;
+
+    const roomVisitCounts = window.gameState.roomVisitCounts || {};
+    const roomTimeMs = window.gameState.roomTimeMs || {};
+
+    const visitedRoomCount = Object.keys(roomVisitCounts).length;
+
+    const heatmapRooms = Object.values(rooms).map(room => {
+        const timeMs = roomTimeMs[room.id] || 0;
+        const visits = roomVisitCounts[room.id] || 0;
+
+        return {
+            id: room.id,
+            x: room.x,
+            z: room.z,
+            visits,
+            timeMs,
+            seconds: Math.round(timeMs / 1000),
+            isStart: room.x === 0 && room.z === 0,
+            isGoal: room.isGoal === true
+        };
+    });
+
+    const maxTimeMs = Math.max(
+        1,
+        ...heatmapRooms.map(room => room.timeMs)
+    );
+
+    const hottestRoom = heatmapRooms.reduce((best, room) => {
+        if (!best) return room;
+        return room.timeMs > best.timeMs ? room : best;
+    }, null);
+
+    const plan = window.progressionPlan || {};
+    const debug = window.debugStats || {};
+
+    return {
+        alias: window.gameState.playerAlias || window.selectedPlayerAlias || 'guest',
+        time: formatGameTime(elapsedMs),
+
+        visitedRooms: visitedRoomCount,
+        totalRooms: roomCount,
+
+        puzzlesSolved: debug.solvedPuzzleRoomIds?.size ?? 0,
+        puzzlesTotal: debug.puzzlesTotal ?? 0,
+
+        doorsOpened: debug.doorsOpened ?? 0,
+        doorsTotal: debug.doorsTotal ?? 0,
+
+        hottestRoom: hottestRoom
+            ? {
+                id: hottestRoom.id,
+                seconds: hottestRoom.seconds,
+                visits: hottestRoom.visits
+            }
+            : null,
+
+        heatmap: {
+            rooms: heatmapRooms,
+            maxTimeMs
+        }
+    };
 }
 
 function placeEntityInFrontOfCamera(entity, distance = 2.2) {

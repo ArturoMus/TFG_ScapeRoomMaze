@@ -138,7 +138,7 @@ window.telemetry = {
         if (!this.enabled) return;
         if (this.runId) return;
 
-        const playerAlias = options.playerAlias || 'anon';
+        const playerAlias = options.playerAlias || 'guest';
 
         const payload = {
             playerAlias,
@@ -291,6 +291,8 @@ AFRAME.registerComponent('telemetry-room-tracker', {
         this.lastCheck = time;
 
         const roomId = window.telemetry.getCurrentRoomId();
+
+        window.recordRoomPresence?.(roomId, performance.now());
 
         if (!roomId) return;
 
