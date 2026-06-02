@@ -345,9 +345,16 @@ AFRAME.registerComponent('vr-end-screen', {
         rooms.forEach(room => {
 
             // Con estocalculo la intensidad del mapa de calor, cuanto más tiempo 1 cuanto menos 0
-            const intensity = room.timeMs > 0
+            let intensity;
+
+            if(room.isGoal){
+                intensity = 0.20
+            }
+            else{
+                intensity = room.timeMs > 0
                 ? room.timeMs / heatmap.maxTimeMs
                 : 0;
+            }
 
             const cell = document.createElement('a-plane');
 
@@ -374,9 +381,10 @@ AFRAME.registerComponent('vr-end-screen', {
                 const marker = document.createElement('a-text');
                 marker.setAttribute('value', room.isStart ? 'I' : 'F');
                 marker.setAttribute('align', 'center');
-                marker.setAttribute('width', '0.35');
-                marker.setAttribute('position', `${localX} ${localY - 0.025} 0.06`);
-                marker.setAttribute('color', '#ffffff');
+                marker.setAttribute('baseline', 'center');
+                marker.setAttribute('width', `${cellSize * 8.5}`);
+                marker.setAttribute('position', `${localX} ${localY - cellSize * 0.06} 0.07`);
+                marker.setAttribute('color', '#000000');
                 this.heatmapRoot.appendChild(marker);
             }
         });
