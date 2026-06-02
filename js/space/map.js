@@ -140,7 +140,7 @@ function rebuildGeneratedNavMesh(rooms, roomSize) {
     }
 
     // Deja de verde la navmesh
-    const NAVMESH_DEBUG = true;
+    const NAVMESH_DEBUG = false;
 
     // Sirve para que pueda ir por las habitaciones de chill
     const ALLOW_CLOSED_DOORS = true;

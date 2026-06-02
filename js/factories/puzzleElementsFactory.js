@@ -473,21 +473,25 @@ function createMemoryPuzzlePanel(room, roomSize = 10, options = {}) {
         {
             color: '#b83232',
             activeColor: '#ff5555',
+            src: '#fireballTex',
             position: '-0.45 0.32 0.09'
         },
         {
             color: '#2e5aac',
             activeColor: '#5599ff',
+            src: '#iceTex',
             position: '0.45 0.32 0.09'
         },
         {
             color: '#2f8f46',
             activeColor: '#55ff77',
+            src: '#grassTex',
             position: '-0.45 -0.15 0.09'
         },
         {
             color: '#b8a132',
             activeColor: '#ffee55',
+            src: '#earthTex',
             position: '0.45 -0.15 0.09'
         }
     ];
@@ -504,14 +508,19 @@ function createMemoryPuzzlePanel(room, roomSize = 10, options = {}) {
         pad.setAttribute('interactable', '');
 
         pad.setAttribute('material', {
-            color: data.color,
+            color: '#ffffff',
+            src: data.src,
+            repeat: '2 2',
             emissive: data.color,
-            emissiveIntensity: 0.05
+            emissiveIntensity: 0.04,
+            roughness: 0.8,
+            metalness: 0
         });
 
         pad.dataset.index = index;
         pad.baseColor = data.color;
         pad.activeColor = data.activeColor;
+        pad.textureSrc = data.src;
 
         pad.addEventListener('mouseenter', () => {
             if (options.canHover && !options.canHover()) return;

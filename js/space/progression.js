@@ -2,8 +2,6 @@
 // Lógica de progresión y puzzles
 // ============================================================
 
-const { symbol } = require("astro:schema");
-
 function isRoomOnMainPath(roomShortId, mainPathCoords) {
     return mainPathCoords.some(coord => coordId(coord) === roomShortId);
 }

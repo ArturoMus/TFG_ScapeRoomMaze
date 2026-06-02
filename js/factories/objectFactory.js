@@ -43,7 +43,10 @@ function createPuzzleBox(position, options = {}) {
     box.setAttribute('height', '0.5');
     box.setAttribute('depth', '0.5');
 
-    box.setAttribute('color', '#FF00FF');
+    box.setAttribute('material' , {
+        src: '#woodBoxTex',
+        repeat: '2 2'
+    });
 
     box.setAttribute('box', '');
     box.setAttribute('class', 'grabbable');

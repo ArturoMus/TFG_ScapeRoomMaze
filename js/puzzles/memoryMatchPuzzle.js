@@ -114,23 +114,15 @@ AFRAME.registerComponent('puzzle-memory-match', {
         const pad = this.pads[index];
         if (!pad) return;
 
-        pad.setAttribute('material', {
-            color: pad.activeColor,
-            emissive: pad.activeColor,
-            emissiveIntensity: 1
-        });
-
+        pad.setAttribute('material', 'emissive', pad.activeColor);
+        pad.setAttribute('material', 'emissiveIntensity', 0.9);
         pad.setAttribute('scale', '1.15 1.15 1.15');
 
         setTimeout(() => {
             if (this.isSolved) return;
 
-            pad.setAttribute('material', {
-                color: pad.baseColor,
-                emissive: pad.baseColor,
-                emissiveIntensity: 0.05
-            });
-
+            pad.setAttribute('material', 'emissive', pad.baseColor);
+            pad.setAttribute('material', 'emissiveIntensity', 0.03);
             pad.setAttribute('scale', '1 1 1');
         }, 300);
     },

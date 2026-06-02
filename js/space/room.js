@@ -61,7 +61,7 @@ function createRoomStructure(room, roomSize, neighbors) {
     });
     floor.setAttribute('material', {
         src: '#floorTex',
-        normalMap: '#floorNormal',
+        //normalMap: '#floorNormal',
         //roughnessMap: '#floorRough',
         repeat: '2 2'
     });
