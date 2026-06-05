@@ -1,5 +1,7 @@
 CREATE DATABASE tfg_ldm;
 
+USE tfg_ldm;
+
 CREATE TABLE IF NOT EXISTS runs (
     id VARCHAR(36) PRIMARY KEY,
 
