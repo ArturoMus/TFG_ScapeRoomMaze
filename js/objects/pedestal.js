@@ -35,7 +35,7 @@ AFRAME.registerComponent('pedestal', {
         this.activate(orbEl);
     },
 
-    emitToTargets: function () {
+    /*emitToTargets: function () {
         if (this.data.targets) {
             const selectors = this.data.targets
                 .split(',')
@@ -58,7 +58,7 @@ AFRAME.registerComponent('pedestal', {
         if (this.data.target) {
             this.data.target.emit('openDoor');
         }
-    },
+    },*/
 
     activate: function (orb) {
         this.activated = true;
@@ -94,7 +94,7 @@ AFRAME.registerComponent('pedestal', {
 
         const roomEl = this.el.parentEl;
 
-        trackPuzzleStarted(roomEl, {
+        /*trackPuzzleStarted(roomEl, {
             doorIds: this.data.targets
         }, {
             pedestalId: this.el.id || null,
@@ -113,7 +113,7 @@ AFRAME.registerComponent('pedestal', {
             orbId: orb.id || null,
             puzzleID: this.data.puzzleID || null,
             targets: this.data.targets || null
-        });
+        });*/
 
         //El orbe ya no es interactuable
         orb.removeAttribute('interactable');
@@ -167,7 +167,12 @@ AFRAME.registerComponent('pedestal', {
         this.el.setAttribute('material', 'emissive', '#00ffff', 'emissiveIntensity', 5);
 
         setTimeout(() => {
-            this.emitToTargets();
+            this.el.emit('pedestal-activated', {
+                pedestalId: this.el.id || null,
+                orbId: orb.id || null,
+                puzzleID: this.data.puzzleID || null,
+                roomId: this.el.parentEl?.id || null
+            });
         }, 300);
     }
 });

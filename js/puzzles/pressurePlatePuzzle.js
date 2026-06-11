@@ -5,11 +5,12 @@ AFRAME.registerComponent('puzzle-pressure-plate', {
     },
 
     init: function () {
-        const room = this.el;
+        this.room = this.el;
+        this.isSolved = false;
 
-        const doors = lockPuzzleDoors(this.data);
+        this.doors = lockPuzzleDoors(this.data);
 
-        if (doors.length === 0) {
+        if (this.doors.length === 0) {
             console.warn("No se encontró ninguna puerta para puzzle-pressure-plate:", this.data);
             return;
         }
@@ -17,23 +18,81 @@ AFRAME.registerComponent('puzzle-pressure-plate', {
         const targetSelectors = getPuzzleDoorSelectors(this.data);
 
         const plateSetup = createCamouflagedPressurePlate(
-            room,
+            this.room,
             targetSelectors,
             window.roomSize || 10
         );
 
-        room.appendChild(plateSetup.plate);
+        this.plate = plateSetup.plate;
+
+        this.plate.addEventListener('pressure-plate-pressed', (event) => {
+            this.handlePlatePressed(event.detail);
+        });
+
+        this.plate.addEventListener('pressure-plate-released', (event) => {
+            this.handlePlateReleased(event.detail);
+        });
+
+        this.room.appendChild(this.plate);
 
         const puzzleID = getFirstPuzzleDoorId(this.data);
 
         const box = createPuzzleBox(plateSetup.boxPosition, {
-            id: `box-${room.id}-${puzzleID}`,
+            id: `box-${this.room.id}-${puzzleID}`,
             puzzleID: puzzleID,
-            roomId: room.id
+            roomId: this.room.id
         });
 
-        room.appendChild(box);
+        this.room.appendChild(box);
 
         console.log("[Placa] Puzzle creado. Abre:", targetSelectors);
+    },
+
+    handlePlatePressed: function (detail = {}) {
+        if (!this.isSolved) {
+            this.isSolved = true;
+
+            trackPuzzleStarted(this.room, this.data, {
+                plateId: detail.plateId || null,
+                objectId: detail.objectId || null,
+                objectType: detail.objectType || null
+            });
+
+            trackPuzzleSolved(this.room, this.data, {
+                plateId: detail.plateId || null,
+                objectId: detail.objectId || null,
+                objectType: detail.objectType || null
+            });
+        }
+
+        const meta = getPuzzleMetaFromRoomElement(this.room);
+
+        window.telemetry?.track('pressure_plate_pressed', {
+            puzzleId: meta?.id || null,
+            puzzleType: meta?.type || 'pressure-plate',
+            roomId: this.room.id,
+            plateId: detail.plateId || null,
+            objectId: detail.objectId || null,
+            objectType: detail.objectType || null,
+            targetDoorIds: getPuzzleDoorIds(this.data)
+        });
+
+        emitToPuzzleDoors(this.data, 'activateDoor');
+    },
+
+    handlePlateReleased: function (detail = {}) {
+        const meta = getPuzzleMetaFromRoomElement(this.room);
+
+        window.telemetry?.track('pressure_plate_released', {
+            puzzleId: meta?.id || null,
+            puzzleType: meta?.type || 'pressure-plate',
+            roomId: this.room.id,
+            plateId: detail.plateId || null,
+            objectId: detail.objectId || null,
+            objectType: detail.objectType || null,
+            targetDoorIds: getPuzzleDoorIds(this.data)
+        });
+
+        emitToPuzzleDoors(this.data, 'closeDoor');
     }
 });

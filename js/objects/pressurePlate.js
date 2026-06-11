@@ -11,7 +11,7 @@ AFRAME.registerComponent('pressure-plate', {
 
     init: function () {
         this.isPressed = false;
-        this.telemetryPressed = false;
+        //this.telemetryPressed = false;
         this.initialPos = this.el.object3D.position.clone();
 
         this.plateWorldPos = new THREE.Vector3();
@@ -94,6 +94,12 @@ AFRAME.registerComponent('pressure-plate', {
         return false;
     },
 
+    getObjectType: function (objEl) {
+        if (objEl?.components?.box) return 'box';
+        if (objEl?.components?.orb) return 'orb';
+        return 'unknown';
+    },
+
     pressed: function () {
         this.isPressed = true;
         console.log("Placa de presión activada");
@@ -101,7 +107,24 @@ AFRAME.registerComponent('pressure-plate', {
         const pressingObject = this.currentPressingObject;
         this.lastPressingObject = pressingObject;
 
-        if (!this.telemetryPressed) {
+        this.el.removeAttribute('animation__press');
+
+        this.el.setAttribute('animation__press', {
+            property: 'position',
+            to: `${this.initialPos.x} ${this.initialPos.y - this.data.pressDepth} ${this.initialPos.z}`,
+            dur: 100,
+            easing: 'easeOutQuad'
+        });
+
+        this.el.emit('pressure-plate-pressed', {
+            plateId: this.el.id || null,
+            objectId: pressingObject?.id || null,
+            objectType: this.getObjectType(pressingObject),
+            target: this.data.target?.id || null,
+            targets: this.data.targets || null
+        });
+
+        /*if (!this.telemetryPressed) {
             this.telemetryPressed = true;
 
             const roomEl = this.el.parentEl;
@@ -141,7 +164,7 @@ AFRAME.registerComponent('pressure-plate', {
             easing: 'easeOutQuad'
         });
 
-        this.emitToTargets('activateDoor');
+        this.emitToTargets('activateDoor');*/
         
     },
 
@@ -150,11 +173,11 @@ AFRAME.registerComponent('pressure-plate', {
         const releasedObject = this.lastPressingObject;
 
         this.isPressed = false;
-        this.telemetryPressed = false;
+        //this.telemetryPressed = false;
         this.currentPressingObject = null;
         this.lastPressingObject = null;
 
-        window.telemetry?.track('pressure_plate_released', {
+        /*window.telemetry?.track('pressure_plate_released', {
                 plateId: this.el.id || null,
                 objectId: releasedObject?.id || null,
                 objectType: releasedObject?.components?.box
@@ -164,7 +187,7 @@ AFRAME.registerComponent('pressure-plate', {
                         : 'unknown',
                 targets: this.data.targets || null,
                 target: this.data.target?.id || null
-        });
+        });*/
 
         console.log("Placa de presión desactivada");
 
@@ -178,11 +201,17 @@ AFRAME.registerComponent('pressure-plate', {
             easing: 'easeOutQuad'
         });
 
-        this.emitToTargets('closeDoor');
+        this.el.emit('pressure-plate-released', {
+            plateId: this.el.id || null,
+            objectId: releasedObject?.id || null,
+            objectType: this.getObjectType(releasedObject),
+            target: this.data.target?.id || null,
+            targets: this.data.targets || null
+        });
         
     },
 
-    emitToTargets: function (eventName) {
+    /*emitToTargets: function (eventName) {
         if (this.data.targets) {
             const selectors = this.data.targets
                 .split(',')
@@ -205,5 +234,5 @@ AFRAME.registerComponent('pressure-plate', {
         if (this.data.target) {
             this.data.target.emit(eventName);
         }
-    },
+    },*/
 });

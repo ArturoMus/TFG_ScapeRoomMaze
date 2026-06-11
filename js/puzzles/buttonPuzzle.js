@@ -6,25 +6,56 @@ AFRAME.registerComponent('puzzle-button-door', {
     },
 
     init: function () {
-        const room = this.el;
+        this.room = this.el;
+        this.isSolved = false;
 
-        const doors = lockPuzzleDoors(this.data);
+        this.doors = lockPuzzleDoors(this.data);
 
-        if (doors.length === 0) {
+        if (this.doors.length === 0) {
             console.warn("No se encontró ninguna puerta para puzzle-button-door:", this.data);
             return;
         }
 
         const targetSelectors = getPuzzleDoorSelectors(this.data);
 
-        const button = createCamouflagedWallButton(
-            room,
+        this.button = createCamouflagedWallButton(
+            this.room,
             targetSelectors,
             window.roomSize || 10
         );
 
-        room.appendChild(button);
+        this.button.addEventListener('button-pressed', (event) => {
+            this.solve(event.detail);
+        });
+
+        this.room.appendChild(this.button);
 
         console.log("[Botón] Puzzle creado. Abre:", targetSelectors);
+    },
+
+    solve: function (detail = {}) {
+        if (this.isSolved) return;
+
+        this.isSolved = true;
+
+        trackPuzzleStarted(this.room, this.data, {
+            buttonId: detail.buttonId || null
+        });
+
+        trackPuzzleSolved(this.room, this.data, {
+            buttonId: detail.buttonId || null
+        });
+
+        const meta = getPuzzleMetaFromRoomElement(this.room);
+
+        window.telemetry?.track('button_pressed', {
+            puzzleId: meta?.id || null,
+            puzzleType: meta?.type || 'button',
+            roomId: this.room.id,
+            buttonId: detail.buttonId || null,
+            targetDoorIds: getPuzzleDoorIds(this.data)
+        });
+
+        emitToPuzzleDoors(this.data, 'openDoor');
     }
 });
