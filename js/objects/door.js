@@ -155,6 +155,16 @@ AFRAME.registerComponent('door', {
                 doorId: this.el.id || null
             });
 
+            if (this.el.doorData) {
+                this.el.doorData.isOpen = true;
+
+                if (this.el.doorData.debugPuzzleRoomIds) {
+                    this.el.doorData.debugPuzzleRoomIds.forEach(roomId => {
+                        window.debugMarkPuzzleSolved?.(roomId);
+                    });
+                }
+            }
+
             if(this.el.doorData){
                 this.el.doorData.isOpen = true;
             }
@@ -164,6 +174,11 @@ AFRAME.registerComponent('door', {
             }
 
             window.rebuildNavMesh();
+
+            this.el.emit('door-fully-opened', {
+                doorId: this.el.id || null
+            });
+
             // EMITIR UN SONIDO PORFA
             console.log("Puerta completamente abierta (pressure plate)");
         }

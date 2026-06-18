@@ -7,6 +7,7 @@ window.telemetry = {
     startedAt: null,
     pendingEvents: [],
     lastRoomId: null,
+    visitedRoomIds: new Set(),
 
     // Devuelve el tiempo desde que empezó la partida en ms
     getElapsedMs() {
@@ -16,36 +17,45 @@ window.telemetry = {
 
     // Sirve para calcular en que sala está actualmente el jugador
     // Obtiene posición global del jugador y busca la hab más cercana
-    getCurrentRoomId() {
-        const player = document.querySelector('#player');
+    getCurrentRoomId(options = {}) {
+    const player = document.querySelector('#player');
 
-        if (!player || !window.rooms || !window.roomSize) {
-            return null;
+    if (!player || !window.rooms || !window.roomSize) {
+        return null;
+    }
+
+    const margin = options.margin ?? Math.min(0.75, window.roomSize * 0.08);
+
+    const playerPos = new THREE.Vector3();
+    player.object3D.getWorldPosition(playerPos);
+
+    let bestRoom = null;
+    let bestDistance = Infinity;
+
+    Object.values(window.rooms).forEach(room => {
+        if (!room) return;
+
+        const roomX = room.x * window.roomSize;
+        const roomZ = room.z * window.roomSize;
+
+        const dx = Math.abs(playerPos.x - roomX);
+        const dz = Math.abs(playerPos.z - roomZ);
+
+        const insideX = dx <= (window.roomSize / 2) - margin;
+        const insideZ = dz <= (window.roomSize / 2) - margin;
+
+        if (!insideX || !insideZ) return;
+
+        const distance = dx * dx + dz * dz;
+
+        if (distance < bestDistance) {
+            bestDistance = distance;
+            bestRoom = room;
         }
+    });
 
-        const playerPos = new THREE.Vector3();
-        player.object3D.getWorldPosition(playerPos);
-
-        let bestRoom = null;
-        let bestDistance = Infinity;
-
-        Object.values(window.rooms).forEach(room => {
-            const roomX = room.x * window.roomSize;
-            const roomZ = room.z * window.roomSize;
-
-            const dx = playerPos.x - roomX;
-            const dz = playerPos.z - roomZ;
-
-            const distance = dx * dx + dz * dz;
-
-            if (distance < bestDistance) {
-                bestDistance = distance;
-                bestRoom = room;
-            }
-        });
-
-        return bestRoom?.id || null;
-    },
+    return bestRoom?.id || null;
+},
 
     // Sirve para contar cuantas puertas únicas hay, evitando contar dos veces puertas compartidas entre salas
     getUniqueDoors() {
@@ -137,6 +147,9 @@ window.telemetry = {
     async startRun(options = {}) {
         if (!this.enabled) return;
         if (this.runId) return;
+        
+        this.lastRoomId = null;
+        this.visitedRoomIds = new Set();
 
         const playerAlias = options.playerAlias || 'guest';
 
@@ -275,11 +288,14 @@ window.telemetry = {
 // Sirve para revisar cada x tiempo en que sala esta el jugador, para notificar si este ha cambiado de sala
 AFRAME.registerComponent('telemetry-room-tracker', {
     schema: {
-        checkEveryMs: { type: 'number', default: 500 }
+        checkEveryMs: { type: 'number', default: 250 },
+        confirmMs: { type: 'number', default: 400 }
     },
 
     init: function () {
         this.lastCheck = 0;
+        this.pendingRoomId = null;
+        this.pendingSince = 0;
     },
 
     tick: function (time) {
@@ -294,18 +310,40 @@ AFRAME.registerComponent('telemetry-room-tracker', {
 
         window.recordRoomPresence?.(roomId, performance.now());
 
-        if (!roomId) return;
-
-        if (roomId !== window.telemetry.lastRoomId) {
-            const previousRoomId = window.telemetry.lastRoomId;
-
-            window.telemetry.lastRoomId = roomId;
-
-            window.telemetry.track('room_entered', {
-                roomId,
-                previousRoomId
-            });
+        if (!roomId) {
+            this.pendingRoomId = null;
+            this.pendingSince = 0;
+            return;
         }
+
+        if (roomId !== this.pendingRoomId) {
+            this.pendingRoomId = roomId;
+            this.pendingSince = time;
+            return;
+        }
+
+        if (time - this.pendingSince < this.data.confirmMs) return;
+
+        if (roomId === window.telemetry.lastRoomId) return;
+
+        const previousRoomId = window.telemetry.lastRoomId;
+
+        window.telemetry.lastRoomId = roomId;
+
+        if (!window.telemetry.visitedRoomIds) {
+            window.telemetry.visitedRoomIds = new Set();
+        }
+
+        const isFirstVisit = !window.telemetry.visitedRoomIds.has(roomId);
+
+        window.telemetry.visitedRoomIds.add(roomId);
+
+        window.telemetry.track('room_entered', {
+            roomId,
+            previousRoomId,
+            isFirstVisit,
+            visitedRoomCount: window.telemetry.visitedRoomIds.size
+        });
     }
 });
 

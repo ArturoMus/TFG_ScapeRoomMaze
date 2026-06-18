@@ -194,6 +194,8 @@ function trackPuzzleSolved(roomEl, data = {}, extra = {}) {
         ...extra
     });
 
+    window.debugMarkPuzzleSolved?.(payload.roomId);
+
     window.telemetry?.track('puzzle_solved', payload, {
         roomId: payload.roomId
     });

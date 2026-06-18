@@ -1,49 +1,4 @@
 
-function getSymbolClueCandidateRoomIds(room, progressionPlan) {
-    const roomShortId = room.id.replace('room-', '');
-    const ancestors = getAncestorRoomIds(roomShortId, progressionPlan);
-
-    if (ancestors.length === 0) {
-        return [];
-    }
-
-    let lastSymbolPuzzleIndex = -1;
-
-    ancestors.forEach((ancestorId, index) => {
-        const ancestorRoom = window.rooms?.[`room-${ancestorId}`];
-
-        if (ancestorRoom?.puzzle?.type === 'symbol') {
-            lastSymbolPuzzleIndex = index;
-        }
-    });
-
-    return ancestors.slice(lastSymbolPuzzleIndex + 1);
-}
-
-function createSymbolPuzzleProgressionData(room, progressionPlan) {
-    const candidates = getSymbolClueCandidateRoomIds(room, progressionPlan);
-
-    if (candidates.length === 0) {
-        console.warn('[SymbolPuzzle] No hay habitaciones candidatas para pista:', room.id);
-
-        return {
-            symbolIndex: 0,
-            clueRoomId: null
-        };
-    }
-
-    const seedText = `${progressionPlan.seed}-${room.id}-symbol`;
-    const rng = createSeededRandom(seedText);
-
-    const clueShortId = candidates[Math.floor(rng() * candidates.length)];
-    const symbolIndex = Math.floor(rng() * SYMBOL_ASSETS.length);
-
-    return {
-        symbolIndex,
-        clueRoomId: `room-${clueShortId}`
-    };
-}
-
 AFRAME.registerComponent('puzzle-symbol', {
     schema: {
         doorId: { type: 'string', default: '' },

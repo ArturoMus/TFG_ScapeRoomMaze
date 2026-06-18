@@ -6,6 +6,7 @@ window.gameState = {
     startTime: null,
     endTime: null,
     playerAlias: 'guest',
+    visitedRoomIds: new Set(),
     roomVisitCounts: {},
     roomTimeMs: {},
     currentTrackedRoomId: null,
@@ -103,6 +104,13 @@ window.startGameFromMenu = function () {
 
     window.gameState.started = true;
     window.gameState.startTime = performance.now();
+
+    window.gameState.visitedRoomIds = new Set();
+    window.gameState.roomVisitCounts = {};
+    window.gameState.roomTimeMs = {};
+    window.gameState.currentTrackedRoomId = null;
+    window.gameState.lastRoomPresenceAt = null;
+
 
     const mainMenu = document.querySelector('#main-menu');
     const loadingScreen = document.querySelector('#loading-screen');
@@ -208,6 +216,7 @@ window.recordRoomPresence = function (roomId, sampleTime = performance.now()) {
 
     const state = window.gameState;
 
+    if (!state.visitedRoomIds) state.visitedRoomIds = new Set();
     if (!state.roomVisitCounts) state.roomVisitCounts = {};
     if (!state.roomTimeMs) state.roomTimeMs = {};
 
@@ -215,16 +224,18 @@ window.recordRoomPresence = function (roomId, sampleTime = performance.now()) {
     const lastSampleTime = state.lastRoomPresenceAt ?? sampleTime;
 
     const delta = Math.max(0, sampleTime - lastSampleTime);
-
-    // Con esto evito sumar tiempos si el navegador peta o cambio de pestaña
     const safeDelta = Math.min(delta, 2000);
 
     if (previousRoomId) {
-        state.roomTimeMs[previousRoomId] = (state.roomTimeMs[previousRoomId] || 0) + safeDelta;
+        state.roomTimeMs[previousRoomId] =
+            (state.roomTimeMs[previousRoomId] || 0) + safeDelta;
     }
 
     if (roomId !== previousRoomId) {
-        state.roomVisitCounts[roomId] = (state.roomVisitCounts[roomId] || 0) + 1;
+        state.visitedRoomIds.add(roomId);
+
+        state.roomVisitCounts[roomId] =
+            (state.roomVisitCounts[roomId] || 0) + 1;
     }
 
     state.currentTrackedRoomId = roomId;
@@ -242,7 +253,9 @@ function buildEndGameSummary(elapsedMs) {
     const roomVisitCounts = window.gameState.roomVisitCounts || {};
     const roomTimeMs = window.gameState.roomTimeMs || {};
 
-    const visitedRoomCount = Object.keys(roomVisitCounts).length;
+    const visitedRoomCount = window.gameState.visitedRoomIds
+    ? window.gameState.visitedRoomIds.size
+    : Object.keys(roomVisitCounts).length;
 
     const heatmapRooms = Object.values(rooms).map(room => {
         const timeMs = roomTimeMs[room.id] || 0;
@@ -496,6 +509,19 @@ window.debugInitMap = function (progressionPlan, rooms) {
         if (door.debugListenerAttached) return;
 
         door.debugListenerAttached = true;
+
+        /*const handleDebugDoorOpened = () => {
+            door.isOpen = true;
+
+            if (door.el.doorData) {
+                door.el.doorData.isOpen = true;
+            }
+
+            debugRefreshDoorStats();
+        };
+
+        door.el.addEventListener('openDoor', handleDebugDoorOpened);
+        door.el.addEventListener('door-fully-opened', handleDebugDoorOpened);*/
 
         door.el.addEventListener('openDoor', () => {
             door.isOpen = true;
