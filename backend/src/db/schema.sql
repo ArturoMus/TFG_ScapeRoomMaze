@@ -23,6 +23,10 @@ CREATE TABLE IF NOT EXISTS runs (
     puzzle_distribution_json LONGTEXT,
     map_json LONGTEXT,
 
+    dominant_hand ENUM('R', 'L', 'U') NOT NULL DEFAULT 'U',
+    age_range ENUM('<12', '12-15', '16-18', '19-35', '36-50', '>51', '-1') NOT NULL DEFAULT '-1',
+    gender_identity ENUM('M', 'F', 'N', 'U') NOT NULL DEFAULT 'U',
+
     created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3)
 );

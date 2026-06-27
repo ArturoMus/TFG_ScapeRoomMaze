@@ -1,6 +1,43 @@
 
 
-// REVISAR TODO ESTO
+window.selectedPlayerProfile = {
+    dominantHand: 'U',
+    ageRange: '-1',
+    genderIdentity: 'U'
+};
+
+const PLAYER_PROFILE_OPTIONS = {
+    dominantHand: [
+        { value: 'U', label: 'Desconocido' },
+        { value: 'R', label: 'Diestro' },
+        { value: 'L', label: 'Zurdo' }
+    ],
+
+    ageRange: [
+        { value: '-1', label: 'Desconocido' },
+        { value: '<12', label: '< 12' },
+        { value: '12-15', label: '12-15' },
+        { value: '16-18', label: '16-18' },
+        { value: '19-35', label: '19-35' },
+        { value: '36-50', label: '36-50' },
+        { value: '>51', label: '> 51' }
+    ],
+
+    genderIdentity: [
+        { value: 'U', label: 'Prefiero no contestar' },
+        { value: 'M', label: 'Hombre' },
+        { value: 'F', label: 'Mujer' },
+        { value: 'N', label: 'No binario' }
+    ]
+};
+
+window.getSelectedPlayerProfile = function () {
+    return {
+        dominantHand: window.selectedPlayerProfile?.dominantHand || 'U',
+        ageRange: window.selectedPlayerProfile?.ageRange || '-1',
+        genderIdentity: window.selectedPlayerProfile?.genderIdentity || 'U'
+    };
+};
 
 AFRAME.registerComponent('main-menu', {
     init: function () {
@@ -12,8 +49,8 @@ AFRAME.registerComponent('main-menu', {
         panel.setAttribute('position', '0 0 0');
 
         const background = document.createElement('a-plane');
-        background.setAttribute('width', '3.4');
-        background.setAttribute('height', '2.75');
+        background.setAttribute('width', '3.8');
+        background.setAttribute('height', '4.15');
         background.setAttribute('material', {
             color: '#111',
             opacity: 0.88,
@@ -25,25 +62,47 @@ AFRAME.registerComponent('main-menu', {
         title.setAttribute('value', 'EL LABERINTO DEL MAGO');
         title.setAttribute('align', 'center');
         title.setAttribute('width', '4');
-        title.setAttribute('position', '0 1.08 0.02');
+        title.setAttribute('position', '0 1.72 0.02');
         title.setAttribute('color', '#ffffff');
         panel.appendChild(title);
 
         const subtitle = document.createElement('a-text');
-        subtitle.setAttribute('value', 'Explora la mazmorra, resuelve puzzles y encuentra la salida.');
+        subtitle.setAttribute('value', 'Explora la mazmorra, resuelve puzles y encuentra la salida.');
         subtitle.setAttribute('align', 'center');
         subtitle.setAttribute('width', '2.8');
-        subtitle.setAttribute('position', '0 0.82 0.02');
+        subtitle.setAttribute('position', '0 1.42 0.02');
         subtitle.setAttribute('color', '#cccccc');
         panel.appendChild(subtitle);
 
         const keyboard = document.createElement('a-entity');
-        keyboard.setAttribute('vr-keyboard', 'maxLength: 12');
-        keyboard.setAttribute('position', '0 0.18 0.04');
+        keyboard.setAttribute('vr-keyboard', 'maxLength: 13');
+        keyboard.setAttribute('position', '0 0.64 0.08');
+        keyboard.setAttribute('scale', '1.08 0.88 0.88');
         panel.appendChild(keyboard);
 
+        const handSelector = this.createProfileOption(
+            'Mano dominante',
+            'dominantHand'
+        );
+        handSelector.setAttribute('position', '0 -0.68 0.12');
+        panel.appendChild(handSelector);
+
+        const ageSelector = this.createProfileOption(
+            'Edad',
+            'ageRange'
+        );
+        ageSelector.setAttribute('position', '0 -0.99 0.12');
+        panel.appendChild(ageSelector);
+
+        const genderSelector = this.createProfileOption(
+            'Género',
+            'genderIdentity'
+        );
+        genderSelector.setAttribute('position', '0 -1.30 0.12');
+        panel.appendChild(genderSelector);
+
         const startButton = this.createButton('INICIAR PARTIDA', 'start');
-        startButton.setAttribute('position', '0 -1.2 0.06');
+        startButton.setAttribute('position', '0 -1.74 0.14');
         panel.appendChild(startButton);
 
         this.el.appendChild(panel);
@@ -77,47 +136,46 @@ AFRAME.registerComponent('main-menu', {
         wrapper.appendChild(button);
 
         return wrapper;
-    }
-});
-
-
-AFRAME.registerComponent('menu-button', {
-    schema: {
-        action: { type: 'string' }
     },
 
-    init: function () {
-        this.el.addEventListener('mouseenter', () => {
-            this.el.setAttribute('material', 'color', '#4f7fc0');
+    createProfileOption: function (label, field) {
+        const wrapper = document.createElement('a-entity');
+        const labelText = document.createElement('a-text');
+        labelText.setAttribute('value', label);
+        labelText.setAttribute('align', 'right');
+        labelText.setAttribute('width', '1.4');
+        labelText.setAttribute('position', '-0.72 -0.035 0.03');
+        labelText.setAttribute('color', '#cccccc');
+        wrapper.appendChild(labelText);
+
+        const button = document.createElement('a-box');
+        button.setAttribute('width', '1.18');
+        button.setAttribute('height', '0.21');
+        button.setAttribute('depth', '0.045');
+        button.setAttribute('position', '0.48 0 0.04');
+        button.setAttribute('class', 'interactable menu-button');
+        button.setAttribute('interactable', '');
+        button.setAttribute('menu-button', {
+            action: 'profile-option',
+            field: field
+        });
+        button.setAttribute('material', {
+            color: '#2f4f75',
+            opacity: 1
         });
 
-        this.el.addEventListener('mouseleave', () => {
-            this.el.setAttribute('material', 'color', '#3a5f8f');
-        });
+        const valueText = document.createElement('a-text');
+        valueText.setAttribute('align', 'center');
+        valueText.setAttribute('width', '1.55');
+        valueText.setAttribute('position', '0 -0.03 0.052');
+        valueText.setAttribute('color', '#ffffff');
 
-        // Fallback por si interactable no llama a interact en algún caso
-        this.el.addEventListener('click', () => {
-            this.interact();
-        });
+        button.appendChild(valueText);
+        wrapper.appendChild(button);
+
+        return wrapper;
     },
-
-    interact: function () {
-        if (this.data.action === 'start') {
-            const alias = window.getSelectedPlayerAlias
-                ? window.getSelectedPlayerAlias()
-                : 'guest';
-
-            window.selectedPlayerAlias = alias;
-
-            if (window.gameState) {
-                window.gameState.playerAlias = alias;
-            }
-
-            window.startGameFromMenu?.();
-        }
-    }
 });
-
 
 AFRAME.registerComponent('vr-loading-screen', {
     init: function () {
@@ -170,6 +228,121 @@ AFRAME.registerComponent('vr-loading-screen', {
 
     hide: function () {
         this.el.setAttribute('visible', false);
+    }
+});
+
+AFRAME.registerComponent('menu-button', {
+    schema: {
+        action: { type: 'string' },
+        field: { type: 'string', default: '' }
+    },
+
+    init: function () {
+        this.lastInteractionAt = 0;
+        this.textEl = this.el.querySelector('a-text');
+
+        this.el.addEventListener('mouseenter', () => {
+            this.el.setAttribute('material', 'color', '#4f7fc0');
+        });
+
+        this.el.addEventListener('mouseleave', () => {
+            const color = this.data.action === 'profile-option'
+                ? '#2f4f75'
+                : '#3a5f8f';
+
+            this.el.setAttribute('material', 'color', color);
+        });
+
+        this.el.addEventListener('click', (event) => {
+            event.stopPropagation();
+            this.interact();
+        });
+
+        if (this.data.action === 'profile-option') {
+            this.refreshProfileText();
+        }
+    },
+
+    interact: function () {
+        const now = performance.now();
+
+        if (now - this.lastInteractionAt < 250) return;
+
+        this.lastInteractionAt = now;
+
+        if (this.data.action === 'start') {
+            this.startGame();
+            return;
+        }
+
+        if (this.data.action === 'profile-option') {
+            this.nextProfileOption();
+            return;
+        }
+    },
+
+    startGame: function () {
+        const alias = window.getSelectedPlayerAlias
+            ? window.getSelectedPlayerAlias()
+            : 'guest';
+
+        const profile = window.getSelectedPlayerProfile
+            ? window.getSelectedPlayerProfile()
+            : {
+                dominantHand: 'U',
+                ageRange: '-1',
+                genderIdentity: 'U'
+            };
+
+        window.selectedPlayerAlias = alias;
+        window.selectedPlayerProfile = profile;
+
+        if (window.gameState) {
+            window.gameState.playerAlias = alias;
+            window.gameState.dominantHand = profile.dominantHand;
+            window.gameState.ageRange = profile.ageRange;
+            window.gameState.genderIdentity = profile.genderIdentity;
+        }
+
+        window.startGameFromMenu?.();
+    },
+
+    nextProfileOption: function () {
+        const field = this.data.field;
+        const options = PLAYER_PROFILE_OPTIONS[field];
+
+        if (!options || options.length === 0) return;
+
+        if (!window.selectedPlayerProfile) {
+            window.selectedPlayerProfile = {
+                dominantHand: 'U',
+                ageRange: '-1',
+                genderIdentity: 'U'
+            };
+        }
+
+        const currentValue = window.selectedPlayerProfile[field];
+        const currentIndex = options.findIndex(option => option.value === currentValue);
+
+        const nextIndex = currentIndex === -1
+            ? 0
+            : (currentIndex + 1) % options.length;
+
+        window.selectedPlayerProfile[field] = options[nextIndex].value;
+
+        this.refreshProfileText();
+    },
+
+    refreshProfileText: function () {
+        const field = this.data.field;
+        const options = PLAYER_PROFILE_OPTIONS[field];
+
+        if (!options || !this.textEl) return;
+
+        const currentValue = window.selectedPlayerProfile?.[field];
+        const option = options.find(option => option.value === currentValue) || options[0];
+
+        this.textEl.setAttribute('value', option.label);
     }
 });
 
@@ -232,7 +405,7 @@ AFRAME.registerComponent('vr-end-screen', {
         panel.appendChild(this.heatmapRoot);
 
         this.heatmapLegend = document.createElement('a-text');
-        this.heatmapLegend.setAttribute('value', 'gris = no visitada | rojo = más tiempo');
+        this.heatmapLegend.setAttribute('value', 'gris = no visitada | rojo = mas tiempo');
         this.heatmapLegend.setAttribute('align', 'center');
         this.heatmapLegend.setAttribute('width', '1.8');
         this.heatmapLegend.setAttribute('position', '0.95 -0.72 0.03');
@@ -297,7 +470,7 @@ AFRAME.registerComponent('vr-end-screen', {
         const hottestRoom = summary.hottestRoom;
 
         const detailValue = hottestRoom
-            ? `Sala con más tiempo:\n${hottestRoom.id}\n${hottestRoom.seconds}s | ${hottestRoom.visits} visitas`
+            ? `Sala con mas tiempo:\n${hottestRoom.id}\n${hottestRoom.seconds}s | ${hottestRoom.visits} visitas`
             : 'Sin datos suficientes de recorrido.';
 
         this.detailText.setAttribute('value', detailValue);

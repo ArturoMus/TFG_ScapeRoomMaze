@@ -18,9 +18,13 @@ async function createRun(run) {
 
             main_path_json,
             puzzle_distribution_json,
-            map_json
+            map_json,
+
+            dominant_hand,
+            age_range,
+            gender_identity
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
 
     await query(sql, [
@@ -39,7 +43,11 @@ async function createRun(run) {
 
         run.mainPathJson,
         run.puzzleDistributionJson,
-        run.mapJson
+        run.mapJson,
+
+        run.dominantHand,
+        run.ageRange,
+        run.genderIdentity
     ]);
 
     return run;

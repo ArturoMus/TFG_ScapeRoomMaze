@@ -155,6 +155,11 @@ window.telemetry = {
 
         const payload = {
             playerAlias,
+
+            dominantHand: options.dominantHand || 'U',
+            ageRange: options.ageRange || '-1',
+            genderIdentity: options.genderIdentity || 'U',
+
             map: this.buildMapPayload()
         };
 

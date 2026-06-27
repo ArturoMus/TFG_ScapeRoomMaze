@@ -8,6 +8,22 @@ function stringify(value) {
 async function createRun(data) {
     const map = data.map || {};
 
+    const validDominantHands = ['R', 'L', 'U'];
+    const validAgeRanges = ['<12', '12-15', '16-18', '19-35', '36-50', '>51', '-1'];
+    const validGenderIdentities = ['M', 'F', 'N', 'U'];
+
+    const dominantHand = validDominantHands.includes(data.dominantHand)
+        ? data.dominantHand
+        : 'U';
+
+    const ageRange = validAgeRanges.includes(data.ageRange)
+        ? data.ageRange
+        : '-1';
+
+    const genderIdentity = validGenderIdentities.includes(data.genderIdentity)
+        ? data.genderIdentity
+        : 'U';
+
     const run = {
         id: crypto.randomUUID(),
 
@@ -25,7 +41,11 @@ async function createRun(data) {
 
         mainPathJson: stringify(map.mainPath || []),
         puzzleDistributionJson: stringify(map.puzzleDistribution || {}),
-        mapJson: stringify(map)
+        mapJson: stringify(map),
+
+        dominantHand,
+        ageRange,
+        genderIdentity
     };
 
     await runsRepository.createRun(run);

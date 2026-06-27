@@ -10,7 +10,11 @@ window.gameState = {
     roomVisitCounts: {},
     roomTimeMs: {},
     currentTrackedRoomId: null,
-    lastRoomPresenceAt: null
+    lastRoomPresenceAt: null,
+
+    dominantHand: 'U',
+    ageRange: '-1',
+    genderIdentity: 'U',
 };
 
 window.playerState = {
@@ -76,6 +80,18 @@ function getCurrentPlayerAlias() {
         .slice(0, 12) || 'guest';
 }
 
+function getCurrentPlayerProfile() {
+    const profile = window.getSelectedPlayerProfile
+        ? window.getSelectedPlayerProfile()
+        : window.selectedPlayerProfile;
+
+    return {
+        dominantHand: profile?.dominantHand || 'U',
+        ageRange: profile?.ageRange || '-1',
+        genderIdentity: profile?.genderIdentity || 'U'
+    };
+}
+
 function generateMapOnce() {
     if (window.gameState.mapGenerated) return;
 
@@ -98,9 +114,15 @@ window.startGameFromMenu = function () {
     if (window.gameState.started) return;
 
     const playerAlias = getCurrentPlayerAlias();
+    const playerProfile = getCurrentPlayerProfile();
 
     window.gameState.playerAlias = playerAlias;
+    window.gameState.dominantHand = playerProfile.dominantHand;
+    window.gameState.ageRange = playerProfile.ageRange;
+    window.gameState.genderIdentity = playerProfile.genderIdentity;
+
     window.selectedPlayerAlias = playerAlias;
+    window.selectedPlayerProfile = playerProfile;
 
     window.gameState.started = true;
     window.gameState.startTime = performance.now();
@@ -135,7 +157,10 @@ window.startGameFromMenu = function () {
 
         setTimeout(() => {
             window.telemetry?.startRun?.({
-                playerAlias: window.gameState.playerAlias || 'guest'
+                playerAlias: window.gameState.playerAlias || 'guest',
+                dominantHand: window.gameState.dominantHand || 'U',
+                ageRange: window.gameState.ageRange || '-1',
+                genderIdentity: window.gameState.genderIdentity || 'U'
             });
         }, 0);
 
