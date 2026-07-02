@@ -91,6 +91,10 @@ AFRAME.registerComponent('door', {
 
         this.isOpen = true;
 
+        window.telemetry?.track('door_opened', {
+            doorId: this.el.id || null
+        });
+
         if (this.el.doorData) {
             this.el.doorData.isOpen = true;
         }
@@ -108,19 +112,7 @@ AFRAME.registerComponent('door', {
             easing: 'easeOutQuad'
         });
         window.rebuildNavMesh?.();
-        
-
-        // Calculamos la nueva rotación en el eje Y
-        /*const newY = this.isOpen 
-            ? this.initialRotation.y + this.data.openRotation 
-            : this.initialRotation.y;*/
-
-        // Aplicamos manteniendo X y Z originales
-        /*this.el.setAttribute('rotation', {
-            x: this.initialRotation.x,
-            y: newY,
-            z: this.initialRotation.z
-        });*/
+    
 
         console.log("Puerta interactuada, estado:", this.isOpen ? "Abierta" : "Cerrada");
     },
@@ -159,6 +151,20 @@ AFRAME.registerComponent('door', {
             this.isLocked = false;
             this.isOpen = true;
 
+            window.telemetry?.track('door_opened', {
+                doorId: this.el.id || null
+            });
+
+            if (this.el.doorData) {
+                this.el.doorData.isOpen = true;
+
+                if (this.el.doorData.debugPuzzleRoomIds) {
+                    this.el.doorData.debugPuzzleRoomIds.forEach(roomId => {
+                        window.debugMarkPuzzleSolved?.(roomId);
+                    });
+                }
+            }
+
             if(this.el.doorData){
                 this.el.doorData.isOpen = true;
             }
@@ -168,6 +174,11 @@ AFRAME.registerComponent('door', {
             }
 
             window.rebuildNavMesh();
+
+            this.el.emit('door-fully-opened', {
+                doorId: this.el.id || null
+            });
+
             // EMITIR UN SONIDO PORFA
             console.log("Puerta completamente abierta (pressure plate)");
         }

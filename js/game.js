@@ -4,29 +4,56 @@ window.gameState = {
     started: false,
     mapGenerated: false,
     startTime: null,
-    endTime: null
+    endTime: null,
+    playerAlias: 'guest',
+    visitedRoomIds: new Set(),
+    roomVisitCounts: {},
+    roomTimeMs: {},
+    currentTrackedRoomId: null,
+    lastRoomPresenceAt: null,
+
+    dominantHand: 'U',
+    ageRange: '-1',
+    genderIdentity: 'U',
 };
 
 window.playerState = {
     hasOrb: false
 };
 
+window.performanceConfig = {
+    lowSpecMode: false,
+    disableTorchLights: false,
+    disableShadows: false,
+    maxActiveTorchLights: 4
+};
+
 window.addEventListener('load', () => {
-    /*const overlay = document.getElementById('overlay');
-    overlay.style.display = 'flex';
-    overlay.querySelector('h1').textContent = 'Busca la salida';
-
-    document.getElementById('start-button').addEventListener('click', () => {
-        overlay.style.display = 'none';
-    });*/
-    const overlay = document.getElementById('overlay');
-    if (overlay) {
-        overlay.style.display = 'none';
-    }
-
     setPlayerMovementEnabled(false);
 });
 
+function applyPerformanceMode() {
+    const scene = document.querySelector('a-scene');
+
+    if (window.performanceConfig.disableShadows && scene) {
+        scene.setAttribute('shadow', 'enabled: false');
+    }
+
+    if (window.performanceConfig.disableTorchLights) {
+        const pointLights = [...document.querySelectorAll('[light]')].filter(el => {
+            const light = el.getAttribute('light');
+            return light && light.type === 'point';
+        });
+
+        pointLights.forEach((lightEl, index) => {
+            if (index >= window.performanceConfig.maxActiveTorchLights) {
+                lightEl.setAttribute('visible', false);
+            }
+        });
+
+        console.log(`[Performance] Luces puntuales activas limitadas a ${window.performanceConfig.maxActiveTorchLights}`);
+    }
+}
 
 function setPlayerMovementEnabled(enabled) {
     const player = document.querySelector('#player');
@@ -40,6 +67,31 @@ function setPlayerMovementEnabled(enabled) {
     );
 }
 
+function getCurrentPlayerAlias() {
+    if (window.getSelectedPlayerAlias) {
+        return window.getSelectedPlayerAlias();
+    }
+
+    const alias = window.selectedPlayerAlias || window.gameState?.playerAlias || 'anon';
+
+    return String(alias)
+        .trim()
+        .replace(/\s+/g, '_')
+        .slice(0, 12) || 'guest';
+}
+
+function getCurrentPlayerProfile() {
+    const profile = window.getSelectedPlayerProfile
+        ? window.getSelectedPlayerProfile()
+        : window.selectedPlayerProfile;
+
+    return {
+        dominantHand: profile?.dominantHand || 'U',
+        ageRange: profile?.ageRange || '-1',
+        genderIdentity: profile?.genderIdentity || 'U'
+    };
+}
+
 function generateMapOnce() {
     if (window.gameState.mapGenerated) return;
 
@@ -51,14 +103,36 @@ function generateMapOnce() {
 
     mapRoot.setAttribute('map', '');
 
+    setTimeout(() => {
+        applyPerformanceMode();
+    }, 0);
+
     window.gameState.mapGenerated = true;
 }
 
 window.startGameFromMenu = function () {
     if (window.gameState.started) return;
 
+    const playerAlias = getCurrentPlayerAlias();
+    const playerProfile = getCurrentPlayerProfile();
+
+    window.gameState.playerAlias = playerAlias;
+    window.gameState.dominantHand = playerProfile.dominantHand;
+    window.gameState.ageRange = playerProfile.ageRange;
+    window.gameState.genderIdentity = playerProfile.genderIdentity;
+
+    window.selectedPlayerAlias = playerAlias;
+    window.selectedPlayerProfile = playerProfile;
+
     window.gameState.started = true;
     window.gameState.startTime = performance.now();
+
+    window.gameState.visitedRoomIds = new Set();
+    window.gameState.roomVisitCounts = {};
+    window.gameState.roomTimeMs = {};
+    window.gameState.currentTrackedRoomId = null;
+    window.gameState.lastRoomPresenceAt = null;
+
 
     const mainMenu = document.querySelector('#main-menu');
     const loadingScreen = document.querySelector('#loading-screen');
@@ -80,6 +154,15 @@ window.startGameFromMenu = function () {
     // Pantalla de carga fake.
     setTimeout(() => {
         generateMapOnce();
+
+        setTimeout(() => {
+            window.telemetry?.startRun?.({
+                playerAlias: window.gameState.playerAlias || 'guest',
+                dominantHand: window.gameState.dominantHand || 'U',
+                ageRange: window.gameState.ageRange || '-1',
+                genderIdentity: window.gameState.genderIdentity || 'U'
+            });
+        }, 0);
 
         if (loadingScreen?.components['vr-loading-screen']) {
             loadingScreen.components['vr-loading-screen'].setContent(
@@ -105,6 +188,7 @@ function endGame() {
 
     window.gameState.finished = true;
     window.gameState.endTime = performance.now();
+    window.telemetry?.finishRun?.('completed');
 
     console.log("Juego terminado");
 
@@ -122,13 +206,21 @@ function endGame() {
     console.log('components:', endScreen?.components);
     console.log('vr-end-screen:', endScreen?.components?.['vr-end-screen']);
 
+    const currentRoomId = window.telemetry?.getCurrentRoomId?.();
+
+    if (currentRoomId) {
+        window.recordRoomPresence?.(currentRoomId, window.gameState.endTime);
+    }
+
+    const summary = buildEndGameSummary(elapsed);
+
     if (endScreen?.components['vr-end-screen']) {
-        endScreen.components['vr-end-screen'].setTime(formattedTime);
+        endScreen.components['vr-end-screen'].setSummary(summary);
 
         placeEntityInFrontOfCamera(endScreen, 2.2);
 
         endScreen.components['vr-end-screen'].show();
-        console.log("Mostrando pantalla final VR:", formattedTime);
+        console.log("Mostrando pantalla final VR:", summary);
     }
 }
 
@@ -139,6 +231,112 @@ function formatGameTime(milliseconds) {
     const seconds = totalSeconds % 60;
 
     return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+}
+
+// Este método me permite saber cuanto tiempo ha pasado el jugador en cada sala y
+// cuantas veces a entrad
+window.recordRoomPresence = function (roomId, sampleTime = performance.now()) {
+    if (!roomId) return;
+    if (!window.gameState?.started) return;
+
+    const state = window.gameState;
+
+    if (!state.visitedRoomIds) state.visitedRoomIds = new Set();
+    if (!state.roomVisitCounts) state.roomVisitCounts = {};
+    if (!state.roomTimeMs) state.roomTimeMs = {};
+
+    const previousRoomId = state.currentTrackedRoomId;
+    const lastSampleTime = state.lastRoomPresenceAt ?? sampleTime;
+
+    const delta = Math.max(0, sampleTime - lastSampleTime);
+    const safeDelta = Math.min(delta, 2000);
+
+    if (previousRoomId) {
+        state.roomTimeMs[previousRoomId] =
+            (state.roomTimeMs[previousRoomId] || 0) + safeDelta;
+    }
+
+    if (roomId !== previousRoomId) {
+        state.visitedRoomIds.add(roomId);
+
+        state.roomVisitCounts[roomId] =
+            (state.roomVisitCounts[roomId] || 0) + 1;
+    }
+
+    state.currentTrackedRoomId = roomId;
+    state.lastRoomPresenceAt = sampleTime;
+};
+
+function buildEndGameSummary(elapsedMs) {
+    if (typeof debugRefreshDoorStats === 'function') {
+        debugRefreshDoorStats();
+    }
+
+    const rooms = window.rooms || {};
+    const roomCount = Object.keys(rooms).length;
+
+    const roomVisitCounts = window.gameState.roomVisitCounts || {};
+    const roomTimeMs = window.gameState.roomTimeMs || {};
+
+    const visitedRoomCount = window.gameState.visitedRoomIds
+    ? window.gameState.visitedRoomIds.size
+    : Object.keys(roomVisitCounts).length;
+
+    const heatmapRooms = Object.values(rooms).map(room => {
+        const timeMs = roomTimeMs[room.id] || 0;
+        const visits = roomVisitCounts[room.id] || 0;
+
+        return {
+            id: room.id,
+            x: room.x,
+            z: room.z,
+            visits,
+            timeMs,
+            seconds: Math.round(timeMs / 1000),
+            isStart: room.x === 0 && room.z === 0,
+            isGoal: room.isGoal === true
+        };
+    });
+
+    const maxTimeMs = Math.max(
+        1,
+        ...heatmapRooms.map(room => room.timeMs)
+    );
+
+    const hottestRoom = heatmapRooms.reduce((best, room) => {
+        if (!best) return room;
+        return room.timeMs > best.timeMs ? room : best;
+    }, null);
+
+    const plan = window.progressionPlan || {};
+    const debug = window.debugStats || {};
+
+    return {
+        alias: window.gameState.playerAlias || window.selectedPlayerAlias || 'guest',
+        time: formatGameTime(elapsedMs),
+
+        visitedRooms: visitedRoomCount,
+        totalRooms: roomCount,
+
+        puzzlesSolved: debug.solvedPuzzleRoomIds?.size ?? 0,
+        puzzlesTotal: debug.puzzlesTotal ?? 0,
+
+        doorsOpened: debug.doorsOpened ?? 0,
+        doorsTotal: debug.doorsTotal ?? 0,
+
+        hottestRoom: hottestRoom
+            ? {
+                id: hottestRoom.id,
+                seconds: hottestRoom.seconds,
+                visits: hottestRoom.visits
+            }
+            : null,
+
+        heatmap: {
+            rooms: heatmapRooms,
+            maxTimeMs
+        }
+    };
 }
 
 function placeEntityInFrontOfCamera(entity, distance = 2.2) {
@@ -190,14 +388,295 @@ AFRAME.registerComponent('end-room-trigger', {
         }
     }
 });
-/*function endGame() {
-    if (window.gameState.finished) return;
-    window.gameState.finished = true;
 
-    console.log("PERIOOOOD");
+AFRAME.registerComponent('fps-watchdog', {
+    schema: {
+        minFps: { type: 'number', default: 22 },
+        checkEveryMs: { type: 'number', default: 1500 }
+    },
 
-    const overlay = document.getElementById('overlay');
-    overlay.style.display = 'flex';
-    overlay.querySelector('h1').textContent = '¡Has ganado!';
+    init: function () {
+        this.samples = [];
+        this.lastCheck = 0;
+        this.lowModeApplied = false;
+    },
 
-}*/
+    tick: function (time, delta) {
+        if (!delta || delta <= 0) return;
+
+        const fps = 1000 / delta;
+        this.samples.push(fps);
+
+        if (this.samples.length > 60) {
+            this.samples.shift();
+        }
+
+        if (time - this.lastCheck < this.data.checkEveryMs) return;
+        this.lastCheck = time;
+
+        const avg = this.samples.reduce((a, b) => a + b, 0) / this.samples.length;
+
+        if (avg < this.data.minFps && !this.lowModeApplied) {
+            //this.lowModeApplied = true;
+            console.warn(`[FPS Watchdog] FPS bajos detectados: ${avg.toFixed(1)}. Aplicando modo rendimiento.`);
+            //applyPerformanceMode();
+        }
+    }
+});
+
+// ============================================================
+// Debug console
+// ============================================================
+
+window.debugStats = {
+    enabled: true,
+    seed: null,
+    fps: 0,
+    currentRoom: '-',
+    puzzlesTotal: 0,
+    solvedPuzzleRoomIds: new Set(),
+    doorsTotal: 0,
+    doorsOpened: 0
+};
+
+window.debugSetPuzzleTotal = function (total) {
+    window.debugStats.puzzlesTotal = total;
+};
+
+function debugGetUniqueDoors(rooms = window.rooms) {
+    if (!rooms) return [];
+
+    const used = new Set();
+    const doors = [];
+
+    Object.values(rooms).forEach(room => {
+        Object.values(room.doors || {}).forEach(door => {
+            if (!door || used.has(door)) return;
+
+            used.add(door);
+            doors.push(door);
+        });
+    });
+
+    return doors;
+}
+
+function debugGetCurrentRoomId() {
+    const player = document.querySelector('#player');
+
+    if (!player || !window.rooms || !window.roomSize) {
+        return '-';
+    }
+
+    const playerPos = new THREE.Vector3();
+    player.object3D.getWorldPosition(playerPos);
+
+    let bestRoom = null;
+    let bestDistance = Infinity;
+
+    Object.values(window.rooms).forEach(room => {
+        const roomX = room.x * window.roomSize;
+        const roomZ = room.z * window.roomSize;
+
+        const dx = playerPos.x - roomX;
+        const dz = playerPos.z - roomZ;
+
+        const distance = dx * dx + dz * dz;
+
+        if (distance < bestDistance) {
+            bestDistance = distance;
+            bestRoom = room;
+        }
+    });
+
+    if (!bestRoom) return '-';
+
+    return `${bestRoom.id} (${bestRoom.x},${bestRoom.z})`;
+}
+
+function debugRefreshDoorStats() {
+    const doors = debugGetUniqueDoors();
+
+    const opened = doors.filter(door => {
+        const componentOpen = door.el?.components?.door?.isOpen === true;
+        const logicalOpen = door.isOpen === true;
+        const doorDataOpen = door.el?.doorData?.isOpen === true;
+
+        return componentOpen || logicalOpen || doorDataOpen;
+    });
+
+    window.debugStats.doorsTotal = doors.length;
+    window.debugStats.doorsOpened = opened.length;
+}
+
+window.debugMarkPuzzleSolved = function (roomId) {
+    if (!roomId) return;
+
+    window.debugStats.solvedPuzzleRoomIds.add(roomId);
+
+    const room = window.rooms?.[roomId];
+
+    if (room?.puzzle) {
+        room.puzzle.solved = true;
+    }
+};
+
+window.debugInitMap = function (progressionPlan, rooms) {
+    window.debugStats.seed = progressionPlan.seed ?? window.mapSeed ?? '-';
+
+    const doors = debugGetUniqueDoors(rooms);
+
+    window.debugStats.doorsTotal = doors.length;
+    window.debugStats.doorsOpened = 0;
+
+    doors.forEach(door => {
+        if (!door.el) return;
+        if (door.debugListenerAttached) return;
+
+        door.debugListenerAttached = true;
+
+        /*const handleDebugDoorOpened = () => {
+            door.isOpen = true;
+
+            if (door.el.doorData) {
+                door.el.doorData.isOpen = true;
+            }
+
+            debugRefreshDoorStats();
+        };
+
+        door.el.addEventListener('openDoor', handleDebugDoorOpened);
+        door.el.addEventListener('door-fully-opened', handleDebugDoorOpened);*/
+
+        door.el.addEventListener('openDoor', () => {
+            door.isOpen = true;
+
+            if (door.el.doorData) {
+                door.el.doorData.isOpen = true;
+            }
+
+            if (door.debugPuzzleRoomIds) {
+                door.debugPuzzleRoomIds.forEach(roomId => {
+                    window.debugMarkPuzzleSolved(roomId);
+                });
+            }
+
+            debugRefreshDoorStats();
+        });
+    });
+
+    debugRefreshDoorStats();
+
+    console.log('[Debug] Inicializado:', {
+        seed: window.debugStats.seed,
+        totalDoors: window.debugStats.doorsTotal,
+        totalPuzzles: window.debugStats.puzzlesTotal
+    });
+};
+
+AFRAME.registerComponent('debug-panel', {
+    schema: {
+        enabled: { type: 'boolean', default: true },
+        updateEveryMs: { type: 'number', default: 250 }
+    },
+
+    init: function () {
+        this.visible = this.data.enabled;
+        this.lastUpdate = 0;
+
+        this.fpsSamples = [];
+
+        this.createPanel();
+
+        this.onKeyDown = this.onKeyDown.bind(this);
+        window.addEventListener('keydown', this.onKeyDown);
+
+        this.el.setAttribute('visible', this.visible);
+    },
+
+    remove: function () {
+        window.removeEventListener('keydown', this.onKeyDown);
+    },
+
+    createPanel: function () {
+        const background = document.createElement('a-plane');
+        background.setAttribute('width', '1.55');
+        background.setAttribute('height', '0.75');
+        background.setAttribute('position', '0 0 0');
+        background.setAttribute('material', {
+            color: '#000000',
+            opacity: 0.65,
+            transparent: true,
+            shader: 'flat'
+        });
+
+        const title = document.createElement('a-text');
+        title.setAttribute('value', 'DEBUG');
+        title.setAttribute('align', 'center');
+        title.setAttribute('width', '1.4');
+        title.setAttribute('position', '0 0.27 0.01');
+        title.setAttribute('color', '#00ffcc');
+
+        const text = document.createElement('a-text');
+        text.setAttribute('value', 'Cargando debug...');
+        text.setAttribute('align', 'left');
+        text.setAttribute('width', '1.45');
+        text.setAttribute('position', '-0.7 0.12 0.01');
+        text.setAttribute('color', '#ffffff');
+
+        this.text = text;
+
+        this.el.appendChild(background);
+        this.el.appendChild(title);
+        this.el.appendChild(text);
+    },
+
+    onKeyDown: function (event) {
+        if (event.key !== 'F3') return;
+
+        this.visible = !this.visible;
+        this.el.setAttribute('visible', this.visible);
+    },
+
+    tick: function (time, delta) {
+        if (!delta || delta <= 0) return;
+
+        const fps = 1000 / delta;
+
+        this.fpsSamples.push(fps);
+
+        if (this.fpsSamples.length > 30) {
+            this.fpsSamples.shift();
+        }
+
+        const avgFps = this.fpsSamples.reduce((a, b) => a + b, 0) / this.fpsSamples.length;
+
+        window.debugStats.fps = avgFps;
+
+        if (time - this.lastUpdate < this.data.updateEveryMs) return;
+        this.lastUpdate = time;
+
+        debugRefreshDoorStats();
+
+        window.debugStats.currentRoom = debugGetCurrentRoomId();
+
+        const seed = window.debugStats.seed ?? '-';
+        const currentRoom = window.debugStats.currentRoom;
+        const solved = window.debugStats.solvedPuzzleRoomIds.size;
+        const totalPuzzles = window.debugStats.puzzlesTotal;
+        const openedDoors = window.debugStats.doorsOpened;
+        const totalDoors = window.debugStats.doorsTotal;
+
+        const textValue =
+            `Seed: ${seed}\n` +
+            `Sala: ${currentRoom}\n` +
+            `Puzzles: ${solved}/${totalPuzzles}\n` +
+            `Puertas: ${openedDoors}/${totalDoors}\n` +
+            `FPS: ${avgFps.toFixed(1)}\n` +
+            `F3: ocultar/mostrar`;
+
+        if (this.text) {
+            this.text.setAttribute('value', textValue);
+        }
+    }
+});

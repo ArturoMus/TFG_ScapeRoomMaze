@@ -8,11 +8,6 @@ AFRAME.registerComponent('button', {
         pressOffset: { type: 'vec3', default: { x: 0, y: 0, z: -0.05 } }
     },
 
-    interact: function () {
-        if (this.isPressed) return;
-        this.press();
-    },
-
     init: function () {
         this.isPressed = false;
         this.initialPos = this.el.object3D.position.clone();
@@ -39,10 +34,37 @@ AFRAME.registerComponent('button', {
         });
     },
 
+    interact: function () {
+        if (this.isPressed) return;
+        this.press();
+    },
+
     press: function () {
+        if(this.isPressed) return;
+
         this.isPressed = true;
 
         console.log("Botón empujado");
+
+        const roomEl = this.el.parentEl;
+
+        /*trackPuzzleStarted(roomEl, {
+            doorIds: this.data.targets
+        }, {
+            buttonId: this.el.id || null
+        });
+
+        trackPuzzleSolved(roomEl, {
+            doorIds: this.data.targets
+        }, {
+            buttonId: this.el.id || null
+        });
+
+        window.telemetry?.track('button_pressed', {
+            buttonId: this.el.id || null,
+            target: this.data.target?.id || null,
+            targets: this.data.targets || null
+        });*/
 
         const targetPos = this.initialPos.clone().add(
             new THREE.Vector3(
@@ -69,12 +91,21 @@ AFRAME.registerComponent('button', {
         });*/
 
         // Evento
-        this.emitToTargets();
+        //this.emitToTargets();
         // Sonido
-        this.el.components.sound.playSound();
+        //this.el.components.sound.playSound();
+        if (this.el.components.sound) {
+            this.el.components.sound.playSound();
+        }
+
+        this.el.emit('button-pressed', {
+            buttonId: this.el.id || null,
+            target: this.data.target?.id || null,
+            targets: this.data.targets || null
+        });
     },
 
-    emitToTargets: function () {
+    /*emitToTargets: function () {
         if (this.data.targets) {
             const selectors = this.data.targets
                 .split(',')
@@ -98,30 +129,5 @@ AFRAME.registerComponent('button', {
         if (this.data.target) {
             this.data.target.emit(this.data.event);
         }
-    },
-
-    /*interact: function () {
-
-        if (this.isPressed) return;
-
-        this.isPressed = true;
-        console.log("Botón pulsado");
-
-        
-        if (this.data.target) {
-            this.data.target.emit(this.data.event);
-        };
-
-        this.el.setAttribute('animation', {
-            property: 'position',
-            to: `${this.el.object3D.position.x} ${this.el.object3D.position.y - 0.1} ${this.el.object3D.position.z}`,
-            dur: 200,
-            easing: 'easeOutQuad'
-        });
-        this.el.components.sound.playSound();
-        
-
-        console.log("El botón ha emitido un evento");
-
-    }*/
+    },*/
 });

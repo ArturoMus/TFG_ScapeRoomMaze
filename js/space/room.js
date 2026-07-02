@@ -61,7 +61,7 @@ function createRoomStructure(room, roomSize, neighbors) {
     });
     floor.setAttribute('material', {
         src: '#floorTex',
-        normalMap: '#floorNormal',
+        //normalMap: '#floorNormal',
         //roughnessMap: '#floorRough',
         repeat: '2 2'
     });
@@ -138,13 +138,6 @@ function createWall(position, size) {
     wall.setAttribute('shadow', {
         cast: true,
         receive: true
-    });
-
-    colliders.push({
-        el: wall,
-        width: w,
-        depth: d,
-        disabled: false
     });
 
     return wall;

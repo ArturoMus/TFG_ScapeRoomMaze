@@ -8,6 +8,7 @@ AFRAME.registerComponent('box', {
         this.grabOffset = new THREE.Vector3();
         this.targetPos = new THREE.Vector3();
         this.currentPos = new THREE.Vector3();
+        this.desiredPos = new THREE.Vector3();
 
         this.el.setAttribute('sleepy', false);
     },
@@ -105,12 +106,27 @@ AFRAME.registerComponent('box', {
         );
 
         // Movimiento suave hacia la mano.
-        this.currentPos.lerp(this.targetPos, 0.35);
+        this.desiredPos.copy(this.currentPos).lerp(this.targetPos, 0.35);
+
+        const safePos = getSafeCarriedObjectPosition(
+            this.currentPos,
+            this.desiredPos,
+            {
+                radius: 0.3,
+                blockerSelector: '.ray-blocker'
+            }
+        );
 
         this.el.body.position.set(
-            this.currentPos.x,
-            this.currentPos.y,
-            this.currentPos.z
+            safePos.x,
+            safePos.y,
+            safePos.z
+        );
+
+        this.el.object3D.position.set(
+            safePos.x,
+            safePos.y,
+            safePos.z
         );
 
         this.el.body.velocity.set(0, 0, 0);

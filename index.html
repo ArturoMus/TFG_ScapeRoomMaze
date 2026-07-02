@@ -1,198 +1,183 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <meta charset="utf-8">
-    <title>Mi escena VR</title>
+        <meta charset="utf-8">
+        <title>Mi escena VR</title>
 
-    <script src="https://aframe.io/releases/1.7.0/aframe.min.js"></script>
+        <script src="https://aframe.io/releases/1.7.0/aframe.min.js"></script>
 
-    <script src="https://cdn.jsdelivr.net/npm/aframe-extras@7.7.0/dist/aframe-extras.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/aframe-extras@7.7.0/dist/aframe-extras.min.js"></script>
 
-    <script src="https://unpkg.com/super-hands@^4.0.3/dist/super-hands.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-physics-system@v4.2.4/dist/aframe-physics-system.min.js"></script>
+        <script src="https://unpkg.com/super-hands@^4.0.3/dist/super-hands.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-physics-system@v4.2.4/dist/aframe-physics-system.min.js"></script>
 
-    <script src="js/player.js"></script>
-    <script src="js/interaction.js"></script>
-    <script src="js/grabber.js"></script>
-    <script src="js/desktopGrabber.js"></script>
-    <script src="js/objects/door.js"></script>
-    <script src="js/objects/button.js"></script>
-    <script src="js/space/graph.js"></script>
-    <script src="js/space/room.js"></script>
-    <script src="js/space/map.js"></script>
-    <script src="js/space/elements.js"></script>
-    <script src="js/puzzles.js"></script>
-    <script src="js/collision.js"></script>
-    <script src="js/menu.js"></script>
-    <script src="js/game.js"></script>
-    <script src="js/objects/orb.js"></script>
-    <script src="js/objects/pedestal.js"></script>
-    <script src="js/objects/pressurePlate.js"></script>
-    <script src="js/objects/box.js"></script>
+
+        <!--  Comunicación frontetnd - backend  -->
+        <script src="js/telemetry.js"></script>
+
+        <!--  Interacciones  -->
+        <script src="js/interaction/interaction.js"></script>
+        <script src="js/interaction/grabber.js"></script>
+        <script src="js/interaction/desktopGrabber.js"></script>
+        <script src="js/interaction/interactionUtils.js"></script>
+
+        <!--  Objectos  -->
+        <script src="js/objects/door.js"></script>
+        <script src="js/objects/button.js"></script>
+        <script src="js/objects/orb.js"></script>
+        <script src="js/objects/pedestal.js"></script>
+        <script src="js/objects/pressurePlate.js"></script>
+        <script src="js/objects/box.js"></script>
+
+        <!--  Espacio / Mapa  -->
+        <script src="js/space/graph.js"></script>
+        <script src="js/space/room.js"></script>
+        <script src="js/space/map.js"></script>
+        <script src="js/space/mapGenerator.js"></script>
+        <script src="js/space/mapRender.js"></script>
+        <script src="js/space/progression.js"></script>
+        <script src="js/space/roomCulling.js"></script>
+
+        <!--  Elementos  -->
+        <script src="js/factories/randomUtils.js"></script>
+        <script src="js/factories/doorFactory.js"></script>
+        <script src="js/factories/objectFactory.js"></script>
+        <script src="js/factories/puzzleElementsFactory.js"></script>
+        <script src="js/factories/roomPropsFactory.js"></script>
+
+        <!--  Puzzles  -->
+        <script src="js/puzzles/puzzleUtils.js"></script>
+        <script src="js/puzzles/buttonPuzzle.js"></script>
+        <script src="js/puzzles/orbPedestalPuzzle.js"></script>
+        <script src="js/puzzles/pressurePlatePuzzle.js"></script>
+        <script src="js/puzzles/memoryMatchPuzzle.js"></script>
+        <script src="js/puzzles/leverPuzzle.js"></script>
+        <script src="js/puzzles/symbolPuzzle.js"></script>
+
+        <!--  UI  -->
+        <script src="js/ui/vrKeyboard.js"></script>
+        <script src="js/ui/menu.js"></script>
+
+
+        <script src="js/game.js"></script>
 
 
 </head>
 <body>
 
-    <!--<div id="overlay" style="
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        display: none;
-        justify-content: center;
-        align-items: center;
-        background: rgba(0,0,0,0.8);
-        color: white;
-        font-family: sans-serif;
-        z-index: 999;
-        flex-direction: column;
-    ">
-        <h1 id="overlay-title">(Pensar nombre juego)</h1>
-        <button id="start-button">Empezar</button>
-    </div> -->
+        <a-scene 
+                telemetry-room-tracker="checkEveryMs: 500" fps-watchdog 
+                room-culling="visibleRadius: 2; lightRadius: 1; updateEveryMs: 300"
+                shadow="type: pcfsoft" light="defaultLightsEnabled: false" 
+                physics="debug: false; gravity: -9.8">
 
-    <a-scene shadow="type: pcfsoft" light="defaultLightsEnabled: false" physics="debug: false; gravity: -9.8">
+                <!-- <a-sphere id="prueba_bola" position="0 1 -3" radius="0.5" color="#EF2D5E" dynamic-body></a-sphere> -->
+                <a-assets>
+                        <!-- Texturas -->
+                        <img id="wallTex" src="textures/Stone_Wall/StoneWallDiff.jpg">
+                        <!--<img id="wallNormal" src="textures/Stone_Wall/StoneWallNorjpg.jpg">
+                        <img id="wallRough" src="textures/Stone_Wall/StoneWallRough.jpg">-->
+                        <img id="floorTex" src="textures/Floor/StoneFloorDiff.jpg">
+                        <!--<img id="floorNormal" src="textures/Floor/StoneFloorNor.jpg">
+                        <img id="floorRough" src="textures/Floor/StoneFloorRough.jpg">-->
+                        <img id="fireballTex" src="textures/FireBall/FireBallDiff.jpg">
+                        <!--<img id="fireballNormal" src="textures/FireBall/FireBallNormal.jpg">
+                        <img id="fireballRough" src="textures/FireBall/FireBallRough.jpg">-->
+                        <img id="fireballEmissive" src="textures/FireBall/FireBallEmissive.jpg">
+                        <img id="earthTex" src="textures/Earth/EarthDiff.jpg">
+                        <img id="iceTex" src="textures/Ice/IceDiff.jpg">
+                        <img id="grassTex" src="textures/Grass/GrassDiff.jpg">
+                        <img id="woodBoxTex" src="textures/Wood_Box/WoodBoxDiff.jpg">
 
-        <!-- <a-sphere id="prueba_bola" position="0 1 -3" radius="0.5" color="#EF2D5E" dynamic-body></a-sphere> -->
-        <a-assets>
-            <!-- Texturas -->
-            <img id="wallTex" src="textures/Stone_Wall/StoneWallDiff.jpg">
-            <img id="wallNormal" src="textures/Stone_Wall/StoneWallNorjpg.jpg">
-            <img id="wallRough" src="textures/Stone_Wall/StoneWallRough.jpg">
-            <img id="floorTex" src="textures/Floor/StoneFloorDiff.jpg">
-            <img id="floorNormal" src="textures/Floor/StoneFloorNor.jpg">
-            <img id="floorRough" src="textures/Floor/StoneFloorRough.jpg">
-            <img id="fireballTex" src="textures/FireBall/FireBallDiff.jpg">
-            <img id="fireballNormal" src="textures/FireBall/FireBallNormal.jpg">
-            <img id="fireballRough" src="textures/FireBall/FireBallRough.jpg">
-            <img id="fireballEmissive" src="textures/FireBall/FireBallEmissive.jpg">
+                        <!-- Sonidos -->
+                        <audio id="buttonSound" src="sounds/ButtonUnlock.wav" preload="auto"></audio>
+                        <audio id="doorSound" src="sounds/doorUnlock.mp3" preload="auto"></audio>
+                        <audio id="fireTorch" src="sounds/FireTorch.mp3" preload="auto"></audio>
+                        <audio id="ambientSound" src="sounds/ambientSound.wav" preload="auto"></audio>
+                        <audio id="ambientSound2" src="sounds/ambientSound2.mp3" preload="auto"></audio>
 
-            <!-- Sonidos -->
-            <audio id="buttonSound" src="sounds/ButtonUnlock.wav" preload="auto"></audio>
-            <audio id="doorSound" src="sounds/doorUnlock.mp3" preload="auto"></audio>
-            <audio id="fireTorch" src="sounds/FireTorch.mp3" preload="auto"></audio>
-            <audio id="ambientSound" src="sounds/ambientSound.wav" preload="auto"></audio>
-            <audio id="ambientSound2" src="sounds/ambientSound2.mp3" preload="auto"></audio>
-        </a-assets>
+                        <!-- Imagenes -->
+                        <img id="runeA" src="images/runeA.png">
+                        <img id="runeB" src="images/runeB.png">
+                        <img id="runeC" src="images/runeC.png">
+                        <img id="runeD" src="images/runeD.png">
 
-        <a-entity id="ambient-audio-1"
-            sound="src: #ambientSound; autoplay: true; loop: true; volume: 0.4; positional: false">
-        </a-entity>
-        <a-entity id="ambient-audio-2"
-            sound="src: #ambientSound2; autoplay: true; loop: true; volume: 0.2; positional: false">
-        </a-entity>
+                </a-assets>
 
-        <a-sky color="#111"></a-sky>
-        <!-- Poner color al 333 e intensidad al 0.6 para hacerlo más oscurito-->
-        <a-entity light="type: ambient; color: #555; intensity: 0.6"></a-entity>
-
-        <a-entity id="main-menu"
-                main-menu
-                position="0 1.6 -2.6">
-        </a-entity>
-
-        <a-entity id="loading-screen"
-                vr-loading-screen
-                position="0 1.6 -2.6">
-        </a-entity>
-
-            <!-- Jugador -->
-            <!--
-                Ahora los controles son con wasd, para cuando use vr probar a añadir esto
-                movement-controls="fly: false; speed: 0.1;"
-            -->
-
-        <!--    
-        <a-entity id="player" player-controls position="0 1.6 0">
-            <a-entity camera look-controls> -->
-                <!-- Revisar con la página oficial-->
-                <!-- Cursor en el centro de la cámara para wasd -->
-                <!--<a-entity cursor-feedback
-                    cursor="fuse: false; rayOrigin: entity" 
-                    raycaster="objects: .grabbable, .interactable" 
-                    geometry="primitive: ring; radiusInner: 0.01; radiusOuter: 0.02"
-                    material="color: white; shader: flat; opacity: 0.5; transparent: true"
-                    position="0 0 -1">
+                <a-entity id="ambient-audio-1"
+                sound="src: #ambientSound; autoplay: true; loop: true; volume: 0.4; positional: false">
+                </a-entity>
+                <a-entity id="ambient-audio-2"
+                sound="src: #ambientSound2; autoplay: true; loop: true; volume: 0.2; positional: false">
                 </a-entity>
 
-                <a-entity
-                    id="hand"
-                    raycaster="objects: .interactable"
-                    cursor
-                    hand-controller>
-                </a-entity>-->
+                <a-sky color="#111"></a-sky>
+                <!-- Poner color al 333 e intensidad al 0.6 para hacerlo más oscurito-->
+                <a-entity light="type: ambient; color: #444; intensity: 0.6"></a-entity>
 
-                <!--
-                <a-entity 
-                    super-hands
-                    raycaster="objects: .grabbable"
-                    collider-check>
-                </a-entity>-->
+                <a-entity id="main-menu"
+                        main-menu
+                        position="0 1.6 -2.6">
+                </a-entity>
 
-                <!-- Controles para VR, revisar con la página oficial
-                    <a-entity 
-                        hand-controls="left"
-                        laser-controls
-                        raycaster="objects: .interactable">
-                    </a-entity>
-                    <a-entity 
-                        hand-controls="right"
-                        laser-controls
-                        raycaster="objects: .interactable">
-                    </a-entity>
-                -->
-                <!--<a-entity id="orb-holder" position="0 -0.3 -0.8"></a-entity>
-            </a-entity>
-        </a-entity>-->
-        <a-entity id="player"
-                movement-controls="controls: gamepad, keyboard; speed: 0; fly: false; constrainToNavMesh: true"
-                gamepad-controls="rotationSensitivity: 0"
-                position="0 0 0">
+                <a-entity id="loading-screen"
+                        vr-loading-screen
+                        position="0 1.6 -2.6">
+                </a-entity>
 
-            <a-entity id="camera"
-                    camera
-                    look-controls="pointerLockEnabled: true"
-                    position="0 1.6 0">
+                <a-entity id="player"
+                        movement-controls="controls: gamepad, keyboard; speed: 0; fly: false; constrainToNavMesh: true"
+                        gamepad-controls="rotationSensitivity: 0"
+                        position="0 0 0">
 
-                        <!--<a-entity id="desktopGrabHolder" position="0 -0.25 -1.1"></a-entity>
-                        <a-entity id="desktopCursor"
-                                cursor="fuse: false; rayOrigin: entity"
-                                raycaster="objects: .interactable, .grabbable, .ray-blocker; far: 5"
-                                desktop-grabber="holder: #desktopGrabHolder; throwForce: 4"
-                                position="0 0 0">
+                        <a-entity id="camera"
+                                camera
+                                look-controls="pointerLockEnabled: true"
+                                >
 
-                            <a-ring
-                                    position="0 0 -1"
-                                    radius-inner="0.008"
-                                    radius-outer="0.014"
-                                    material="color: white; shader: flat; opacity: 0.8; transparent: true">
-                            </a-ring>-->
 
-                            <a-entity id="end-screen"
-                                    vr-end-screen
-                                    visible="false"
-                                    position="0 1.6 -2.6">
-                            </a-entity>
-                    </a-entity>
+                                        <a-entity
+                                                id="debug-panel"
+                                                debug-panel="enabled: false; updateEveryMs: 250"
+                                                position="0 -0.35 -1.45">
+                                        </a-entity>
 
-            <a-entity id="leftHand"
-                    laser-controls="hand: left; handModelStyle: highPoly; color: #ffcccc"
-                    raycaster="objects: .interactable, .grabbable, .ray-blocker; far: 3"
-                    line="color: white"
-                    vr-grabber>
-            </a-entity>
+                                        <a-entity id="desktopGrabHolder" position="0 -0.25 -1.1"></a-entity>
+                                        <a-entity id="desktopCursor"
+                                                cursor="fuse: false; rayOrigin: entity"
+                                                raycaster="objects: .interactable, .grabbable, .ray-blocker; far: 5"
+                                                desktop-grabber="holder: #desktopGrabHolder; throwForce: 4"
+                                                position="0 0 0">
 
-            <a-entity id="rightHand"
-                    laser-controls="hand: right; handModelStyle: highPoly; color: #ffcccc"
-                    raycaster="objects: .interactable, .grabbable, .ray-blocker; far: 3"
-                    line="color: white"
-                    vr-grabber>
-            </a-entity>
+                                        <!--<a-ring
+                                                position="0 0 -1"
+                                                radius-inner="0.008"
+                                                radius-outer="0.014"
+                                                material="color: white; shader: flat; opacity: 0.8; transparent: true">
+                                        </a-ring>-->
 
-        </a-entity>
-        <a-entity id="map-root"></a-entity>
-    </a-scene>
+                                        <a-entity id="end-screen"
+                                                vr-end-screen
+                                                visible="false"
+                                                position="0 1.6 -2.6">
+                                        </a-entity>
+                        </a-entity>
+
+                        <a-entity id="leftHand"
+                                laser-controls="hand: left; handModelStyle: highPoly; color: #ffcccc"
+                                raycaster="objects: .interactable, .grabbable, .ray-blocker; far: 3"
+                                line="color: white"
+                                vr-grabber>
+                        </a-entity>
+
+                        <a-entity id="rightHand"
+                                laser-controls="hand: right; handModelStyle: highPoly; color: #ffcccc"
+                                raycaster="objects: .interactable, .grabbable, .ray-blocker; far: 3"
+                                line="color: white"
+                                vr-grabber>
+                        </a-entity>
+                </a-entity>
+                <a-entity id="map-root"></a-entity>
+        </a-scene>
 </body>
 </html>
