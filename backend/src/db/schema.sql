@@ -1,4 +1,4 @@
-CREATE DATABASE tfg_ldm;
+CREATE DATABASE tfg_ldm IF NOT EXISTS tfg_ldm;
 
 USE tfg_ldm;
 
