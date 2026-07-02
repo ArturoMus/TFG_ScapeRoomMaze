@@ -1,7 +1,7 @@
 window.telemetry = {
     enabled: true,
     // ESTO CAMBIARLO POR LA DEL SERVIDOR, ES DECIR, ESCAPEROOM.ltm.uib O LO QUE SEA
-    apiUrl: 'http://localhost:3000/api',
+    apiUrl: '/api',
 
     runId: null,
     startedAt: null,
