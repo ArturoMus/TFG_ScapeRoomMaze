@@ -353,7 +353,7 @@ function createCamouflagedPressurePlate(room, doorSelector, roomSize = 10) {
 
     const platePos = randomFloorPoint(roomSize, margin);
 
-    const plate = createPressurePlate(`${platePos.x} 0.2 ${platePos.z}`, doorSelector, {
+    const plate = createPressurePlate(`${platePos.x} 0.05 ${platePos.z}`, doorSelector, {
         width: 1.2,
         height: 0.08,
         depth: 1.2,

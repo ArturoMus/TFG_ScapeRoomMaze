@@ -23,12 +23,14 @@
 AFRAME.registerComponent('map', {
     init: function () {
 
+        const mapSeed = Date.now();
+
         const mapConfig = createMapConfig({
             width: 5,
             height: 5,
             start: { x: 0, z: 0 },
 
-            seed: 1235,
+            seed: mapSeed,
 
             algorithm: 'dfsBacktracker',
             difficulty: 'normal',
@@ -140,10 +142,10 @@ function rebuildGeneratedNavMesh(rooms, roomSize) {
     }
 
     // Deja de verde la navmesh
-    const NAVMESH_DEBUG = true;
+    const NAVMESH_DEBUG = false;
 
     // Sirve para que pueda ir por las habitaciones de chill
-    const ALLOW_CLOSED_DOORS = true;
+    const ALLOW_CLOSED_DOORS = false;
 
     const playerMargin = 0.45;
     const doorWidth = 1.25;
