@@ -680,3 +680,30 @@ AFRAME.registerComponent('debug-panel', {
         }
     }
 });
+
+AFRAME.registerComponent('desktop-camera-height', {
+    schema: {
+        desktopY: { type: 'number', default: 1.6 }
+    },
+
+    init() {
+        const scene = this.el.sceneEl;
+
+        const applyMode = () => {
+        if (scene.is('vr-mode')) {
+            this.el.setAttribute('position', '0 0 0');
+        } else {
+            this.el.setAttribute('position', `0 ${this.data.desktopY} 0`);
+        }
+        };
+
+        if (scene.hasLoaded) {
+        applyMode();
+        } else {
+        scene.addEventListener('loaded', applyMode);
+        }
+
+        scene.addEventListener('enter-vr', applyMode);
+        scene.addEventListener('exit-vr', applyMode);
+    }
+});
