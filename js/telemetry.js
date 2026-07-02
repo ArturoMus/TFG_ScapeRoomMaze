@@ -1,7 +1,8 @@
 window.telemetry = {
     enabled: true,
-    // ESTO CAMBIARLO POR LA DEL SERVIDOR, ES DECIR, ESCAPEROOM.ltm.uib O LO QUE SEA
+
     apiUrl: '/api',
+    //apiUrl: 'http://localhost:3000/api',
 
     runId: null,
     startedAt: null,
@@ -352,31 +353,47 @@ AFRAME.registerComponent('telemetry-room-tracker', {
     }
 });
 
+let unloadAbandonSent = false;
 
+window.addEventListener('pagehide', () => {
+    if (unloadAbandonSent) return;
+    unloadAbandonSent = true;
 
-// NO ME FURULA, REVISAR
-window.addEventListener('beforeunload', () => {
     if (!window.telemetry?.enabled) return;
     if (!window.telemetry.runId) return;
     if (window.gameState?.finished) return;
 
+    const durationMs = window.telemetry.getElapsedMs();
+
     const event = {
         runId: window.telemetry.runId,
         type: 'run_abandoned',
-        elapsedMs: window.telemetry.getElapsedMs(),
+        elapsedMs: durationMs,
         roomId: window.telemetry.getCurrentRoomId(),
         payload: {
             reason: 'page_unload'
         }
     };
 
-    const blob = new Blob(
+    const eventBlob = new Blob(
         [JSON.stringify(event)],
         { type: 'application/json' }
     );
 
     navigator.sendBeacon(
         `${window.telemetry.apiUrl}/events`,
-        blob
+        eventBlob
     );
+
+    fetch(`${window.telemetry.apiUrl}/runs/${window.telemetry.runId}/finish`, {
+        method: 'PATCH',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            result: 'abandoned',
+            durationMs
+        }),
+        keepalive: true
+    }).catch(() => {});
 });
