@@ -23,7 +23,7 @@
 AFRAME.registerComponent('map', {
     init: function () {
 
-        const mapSeed = Date.now();
+        const mapSeed = crypto.randomUUID();
 
         const mapConfig = createMapConfig({
             width: 5,
