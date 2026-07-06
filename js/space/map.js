@@ -46,6 +46,10 @@ AFRAME.registerComponent('map', {
 
         const progressionPlan = getRandomBetaMazePlan(mapConfig);
 
+        console.log("SEED:", progressionPlan.seed);
+        console.log("EDGES:", [...progressionPlan.allowedConnections].sort());
+        console.log("MAIN PATH:", progressionPlan.mainPathCoords.map(c => `${c.x}-${c.z}`));
+
         const roomSize = mapConfig.roomSize;
 
         const rooms = createGraph(

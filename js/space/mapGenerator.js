@@ -18,17 +18,34 @@ function shuffleArray(array, rng = Math.random) {
     return copy;
 }
 
+function hashSeed(seed) {
+    const str = String(seed);
+    let h = 2166136261 >>> 0; // FNV-1a 32-bit offset basis
+
+    for (let i = 0; i < str.length; i++) {
+        h ^= str.charCodeAt(i);
+        h = Math.imul(h, 16777619);
+    }
+
+    return h >>> 0;
+}
+
 function createSeededRandom(seed) {
-    let value = Number(seed) || Date.now();
+    let state = hashSeed(seed);
+
+    console.log('[RNG init]', {
+        seed,
+        state
+    });
 
     return function () {
-        value |= 0;
-        value = value + 0x6D2B79F5 | 0;
+        state = (state + 0x6D2B79F5) >>> 0;
 
-        let t = Math.imul(value ^ value >>> 15, 1 | value);
-        t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+        let t = state;
+        t = Math.imul(t ^ (t >>> 15), t | 1);
+        t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
 
-        return ((t ^ t >>> 14) >>> 0) / 4294967296;
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
     };
 }
 
@@ -357,13 +374,24 @@ function findMainPathFromStart(tree, startCoord, config = {}) {
 }
 
 function getRandomBetaMazePlan(config = {}) {
-    
     const mapConfig = createMapConfig(config);
 
     const width = mapConfig.width;
     const height = mapConfig.height;
     const startCoord = mapConfig.start;
     const seed = mapConfig.seed;
+
+    const previewRng = createSeededRandom(seed);
+    const preview = [
+        previewRng(),
+        previewRng(),
+        previewRng(),
+        previewRng(),
+        previewRng()
+    ];
+
+    console.log('seed:', seed);
+    console.log('rng preview:', preview);
 
     const rng = createSeededRandom(seed);
 
@@ -388,16 +416,13 @@ function getRandomBetaMazePlan(config = {}) {
         seed,
         algorithm: mapConfig.algorithm,
         difficulty: mapConfig.difficulty,
-
         config: mapConfig,
-
         layout,
         width,
         height,
         startCoord,
         finalCoord,
         mainPathCoords,
-
         allowedConnections: tree.edges,
         tree
     };
